@@ -61,9 +61,10 @@ function post_sample_cov(ϵ, η, ν)
     n = length(ϵ)
 
     Q = [ϵ η]' * [ϵ η]
-
+    if any(map(!isfinite, Q))
+        error("Infinite sample covariance: Try increasing ν!")
+    end
     Σ = rand(InverseWishart(ν + n, I + Q))
-    
     return (Σ = Σ)
 end
 
