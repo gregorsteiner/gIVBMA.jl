@@ -45,7 +45,7 @@ end
 """
     Obtain a sample from the posterior predictive of y|x.
 """
-function posterior_predictive(PostSample::Union{IVBMA, IVBMA_2c}, x::AbstractVector, Z::AbstractMatrix, W::AbstractMatrix)
+function posterior_predictive(PostSample::Union{PostSample, PostSample2C}, x::AbstractVector, Z::AbstractMatrix, W::AbstractMatrix)
     n = length(x)
     y = Matrix{Float64}(undef, length(PostSample.α), n)
     for i in eachindex(PostSample.α)
@@ -60,7 +60,7 @@ end
 """
     Compute the log predictive score on a holdout dataset.
 """
-function lpd(PostSample::Union{IVBMA, IVBMA_2c}, y::AbstractVector, x::AbstractVector, Z::AbstractMatrix, W::AbstractMatrix)
+function lpd(PostSample::Union{PostSample, PostSample2C}, y::AbstractVector, x::AbstractVector, Z::AbstractMatrix, W::AbstractMatrix)
     n = length(y)
     pd = Vector{Float64}(undef, length(PostSample.α))
     for i in eachindex(PostSample.α)
@@ -73,7 +73,7 @@ function lpd(PostSample::Union{IVBMA, IVBMA_2c}, y::AbstractVector, x::AbstractV
     return -log(mean(pd))
 end
 
-function lpd(PostSample::Union{IVBMA, IVBMA_2c}, y::AbstractVector, x::AbstractVector, Z::AbstractMatrix)
+function lpd(PostSample::Union{PostSample, PostSample2C}, y::AbstractVector, x::AbstractVector, Z::AbstractMatrix)
     n = length(y)
     pd = Vector{Float64}(undef, length(PostSample.α))
     for i in eachindex(PostSample.α)
@@ -90,7 +90,7 @@ end
     Plot method for IVBMA or IVBMA_2c objects.
     This function plots traceplots and posterior densities of τ and σ₁₂.
 """
-function StatsPlots.plot(ivbma::IVBMA)
+function StatsPlots.plot(ivbma::PostSample)
     tp_τ = plot(ivbma.τ, label = "", ylabel = "τ")
     dp_τ = density(ivbma.τ, fill = true, label = "p(τ | D)")
 
@@ -111,7 +111,7 @@ function StatsPlots.plot(ivbma::IVBMA)
     return p
 end
 
-function StatsPlots.plot(ivbma::IVBMA_2c)
+function StatsPlots.plot(ivbma::PostSample2C)
     tp_τ = plot(ivbma.τ, label = "", ylabel = "τ")
     dp_τ = density(ivbma.τ, fill = true, label = "p(τ | D)")
 

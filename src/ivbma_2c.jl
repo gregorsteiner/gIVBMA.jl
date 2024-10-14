@@ -1,5 +1,24 @@
 
 """
+    A structure to store the posterior sample in
+"""
+struct PostSample2C
+    α::Vector{Float64}
+    τ::Vector{Float64}
+    β::Matrix{Float64}
+    γ::Vector{Float64}
+    δ::Matrix{Float64}
+    Σ::Array{Matrix{Float64}}
+    L::Matrix{Bool}
+    M::Matrix{Bool}
+    g_L::Vector{Float64}
+    g_l::Vector{Float64}
+    g_s::Vector{Float64}
+    ν::Vector{Float64}
+end
+
+
+"""
     Modified functions for the treatment posterior and marginal likelihood based on the two-component prior.
 """
 function post_sample_treatment_2c(x, V, V_t_V, ϵ, Σ, G)
@@ -41,24 +60,6 @@ function G_constr(g_s, g_l, ind, p, k)
     return Diagonal([repeat([sqrt(g_s)], p); repeat([sqrt(g_l)], k)])[ind, ind]
 end
 
-
-"""
-    A structure to store the posterior sample in
-"""
-struct IVBMA_2c
-    α::Vector{Float64}
-    τ::Vector{Float64}
-    β::Matrix{Float64}
-    γ::Vector{Float64}
-    δ::Matrix{Float64}
-    Σ::Array{Matrix{Float64}}
-    L::Matrix{Bool}
-    M::Matrix{Bool}
-    g_L::Vector{Float64}
-    g_l::Vector{Float64}
-    g_s::Vector{Float64}
-    ν::Vector{Float64}
-end
 
 """
     Fit IVBMA with the two-component prior and hyperpriors on g and ν.
@@ -263,7 +264,7 @@ function ivbma_2c(
         propVar_ν = adjust_variance(propVar_ν, acc_ν, i)
     end
 
-    return IVBMA_2c(
+    return PostSample2C(
         α_store[(burn+1):end],
         τ_store[(burn+1):end],
         β_store[(burn+1):end,:],
