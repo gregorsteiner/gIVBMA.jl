@@ -24,6 +24,10 @@ end
 function post_sample_treatment_2c(x, V, V_t_V, ϵ, Σ, G)
     n = length(x)
 
+    if (rank(V_t_V) < size(V_t_V, 1))
+        error("Non-full rank model!")
+    end
+
     ψ = calc_psi(Σ)
     a = Σ[1,2]^2/(Σ[2,2] * ψ^2) + 1
     ϵ_bar = Statistics.mean(ϵ)
@@ -39,6 +43,10 @@ end
 
 function marginal_likelihood_treatment_2c(x, V, V_t_V, ϵ, Σ, G)
     n = length(x)
+
+    if (rank(V_t_V) < size(V_t_V, 1))
+        error("Non-full rank model!")
+    end
 
     ψ = calc_psi(Σ)
     a = Σ[1,2]^2/(Σ[2,2] * ψ^2) + 1

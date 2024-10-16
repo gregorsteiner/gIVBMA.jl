@@ -120,7 +120,7 @@ function StatsPlots.plot(ivbma::PostSample2C)
     dp_σ12 = density(σ12, fill = true, label = "p(σ₁₂ | D)")
 
     g = [ivbma.g_L ivbma.g_s ivbma.g_l]
-    tp_g = plot(g, yaxis = :log, ylabel = "g", label = ["g_L" "g_M"])
+    tp_g = plot(g, yaxis = :log, ylabel = "g", label = ["g_L" "g_s" "g_l"])
     model_size = plot([sum(ivbma.L, dims = 2) sum(ivbma.M, dims = 2)], ylabel = "Model Size", label = ["L" "M"])
 
     p = plot(

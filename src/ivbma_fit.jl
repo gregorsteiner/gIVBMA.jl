@@ -29,6 +29,10 @@ function post_sample_outcome(y, U, U_t_U, η, Σ, g)
     y_bar = Statistics.mean(y)
     η_bar = Statistics.mean(η)
 
+    if (rank(U_t_U) < size(U_t_U, 1))
+        error("Non-full rank model!")
+    end
+
     B = g/(g+1) * inv(U_t_U)
 
     α = rand(Normal(y_bar - Σ[1,2]/Σ[2,2] * η_bar, ψ^2/n))
@@ -43,6 +47,10 @@ end
 
 function post_sample_treatment(x, V, V_t_V, ϵ, Σ, g)
     n = length(x)
+
+    if (rank(V_t_V) < size(V_t_V, 1))
+        error("Non-full rank model!")
+    end
 
     ψ = calc_psi(Σ)
     ϵ_bar = Statistics.mean(ϵ)
@@ -61,15 +69,21 @@ function post_sample_cov(ϵ, η, ν)
     n = length(ϵ)
 
     Q = [ϵ η]' * [ϵ η]
-
+    if any(map(!isfinite, Q))
+        error("Infinite sample covariance: Try increasing ν!")
+    end
     Σ = rand(InverseWishart(ν + n, I + Q))
-    
     return (Σ = Σ)
 end
 
 function marginal_likelihood_outcome(y, U, U_t_U, η, Σ, g)
     n = length(y)
     k = size(U, 2)
+
+    if (rank(U_t_U) < size(U_t_U, 1))
+        error("Non-full rank model!")
+    end
+    
     ψ = calc_psi(Σ)
     y_bar = Statistics.mean(y)
     η_bar = Statistics.mean(η)
@@ -84,6 +98,11 @@ end
 function marginal_likelihood_treatment(x, V, V_t_V, ϵ, Σ, g)
     n = length(x)
     k = size(V, 2)
+
+    if (rank(V_t_V) < size(V_t_V, 1))
+        error("Non-full rank model!")
+    end
+
     ψ = calc_psi(Σ)
     ϵ_bar = Statistics.mean(ϵ)
 
