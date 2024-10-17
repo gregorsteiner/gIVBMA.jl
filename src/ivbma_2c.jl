@@ -2,7 +2,7 @@
 """
     A structure to store the posterior sample in
 """
-struct PostSample2C
+struct PostSampleIVBMA2C
     α::Vector{Float64}
     τ::Vector{Float64}
     β::Matrix{Float64}
@@ -272,7 +272,7 @@ function ivbma_2c(
         propVar_ν = adjust_variance(propVar_ν, acc_ν, i)
     end
 
-    return PostSample2C(
+    return PostSampleIVBMA2C(
         α_store[(burn+1):end],
         τ_store[(burn+1):end],
         β_store[(burn+1):end,:],

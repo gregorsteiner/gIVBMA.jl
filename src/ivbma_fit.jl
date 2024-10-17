@@ -3,7 +3,7 @@
 """
     A type to store the posterior sample in
 """
-struct PostSample
+struct PostSampleIVBMA
     α::Vector{Float64}
     τ::Vector{Float64}
     β::Matrix{Float64}
@@ -297,7 +297,7 @@ function ivbma(
         propVar_ν = adjust_variance(propVar_ν, acc_ν, i)
     end
 
-    return PostSample(
+    return PostSampleIVBMA(
         α_store[(burn+1):end],
         τ_store[(burn+1):end],
         β_store[(burn+1):end,:],
@@ -476,7 +476,7 @@ function ivbma(
 
     end
 
-    return PostSample(
+    return PostSampleIVBMA(
         α_store[(burn+1):end],
         τ_store[(burn+1):end],
         β_store[(burn+1):end,:],
