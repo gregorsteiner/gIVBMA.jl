@@ -22,7 +22,7 @@ function iv_fit(
     W::AbstractMatrix{<:Real};
     iter::Integer = 2000,
     burn::Integer = 1000,
-    ν = 10,
+    ν = 3,
     g_L_prior::Function = g -> log(hyper_g_n(g; a = 3, n = length(y))),
     g_M_prior::Function = g -> log(hyper_g_n(g; a = 3, n = length(y))),
 )
@@ -30,6 +30,7 @@ function iv_fit(
     # centre all regressors
     x = x .- mean(x)
     Z = Z .- mean(Z; dims = 1)
+    W = W .- mean(W; dims = 1)
     
     n = size(Z, 1)
     p = size(Z, 2)
@@ -55,10 +56,9 @@ function iv_fit(
     V = [Z W]
     V_t_V = V'V
 
-    η = x - (γ_store[1]*ones(n) + Z * δ_store[1,:])
+    η = x - (γ_store[1]*ones(n) + V * δ_store[1,:])
 
     for i in 2:iter
-
         # Step 1.1: Draw g_l
         curr = g_L_store[i-1]
         prop = rand(LogNormal(log(curr), propVar_g_L))
@@ -86,7 +86,7 @@ function iv_fit(
         end
 
         # Step 2.0: Precompute residuals
-        ϵ = y - (α_store[i] * ones(n) + τ_store[i] * x + Z * β_store[i,:])
+        ϵ = y - (α_store[i] * ones(n) + τ_store[i] * x + W * β_store[i,:])
 
         # Step 2.1: Update g_M
         curr = g_M_store[i-1]
@@ -111,7 +111,7 @@ function iv_fit(
         δ_store[i, :] = draw.δ
 
         # Step 3: Update covariance Matrix
-        η = x - (γ_store[i] * ones(n) + Z * δ_store[i,:])
+        η = x - (γ_store[i] * ones(n) + V * δ_store[i,:])
         Σ_store[i] = post_sample_cov(ϵ, η, ν)
 
     end
