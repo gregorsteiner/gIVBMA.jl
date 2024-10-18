@@ -37,9 +37,9 @@ function iv_fit(
 
     α_store = zeros(iter)
     τ_store = zeros(iter)
-    β_store = zeros(iter, p)
+    β_store = zeros(iter, k)
     γ_store = zeros(iter)
-    δ_store = zeros(iter, p)
+    δ_store = zeros(iter, k+p)
     Σ_store = Array{Matrix{Float64}}(undef, iter)
     Σ_store[1] = [1.0 0.0; 0.0 1.0]
 
