@@ -1,5 +1,11 @@
 
 
+"""
+    A helper function to calculate ψ.
+"""
+function calc_psi(Σ)
+    return sqrt(Σ[1,1] - Σ[1,2]^2 / Σ[2,2])
+end
 
 """
     Functions to sample from the conditional posteriors and compute marginal likelihoods.

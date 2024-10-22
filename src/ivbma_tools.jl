@@ -1,11 +1,5 @@
 
 
-"""
-    A helper function to calculate ψ.
-"""
-function calc_psi(Σ)
-    return sqrt(Σ[1,1] - Σ[1,2]^2 / Σ[2,2])
-end
 
 """
     This is a helper function to adaptively tune the proposal variances of the MH steps.

@@ -11,6 +11,7 @@ include("ivbma_priors.jl")
 include("iv_fit.jl")
 include("ivbma_fit.jl")
 include("ivbma_2c.jl")
+include("ivbma_pln.jl")
 include("ivbma_tools.jl")
 
 
