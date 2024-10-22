@@ -158,10 +158,8 @@ function ivbma_2c(
         propVar_g_L = adjust_variance(propVar_g_L, acc_g_L, i)
         
         # Step 1.2: Update outcome model
-        curr = L_incl[i-1,:]
-        prop = L_incl[i-1,:]
-        ind = sample((1:k))
-        prop[ind] = !prop[ind]
+        curr = copy(L_incl[i-1,:])
+        prop = mc3_proposal(L_incl[i-1,:])
 
         U_prop = [x W_L[:,prop]]
         U_t_U_prop = U_prop'U_prop
@@ -224,10 +222,8 @@ function ivbma_2c(
 
 
         # Step 2.3: Update treatment model
-        curr = M_incl[i-1,:]
-        prop = M_incl[i-1,:]
-        ind = sample(1:(k+p))
-        prop[ind] = !prop[ind]
+        curr = copy(M_incl[i-1,:])
+        prop = mc3_proposal(M_incl[i-1,:])
 
         V_prop = W_M[:, prop]
         V_t_V_prop = V_prop'V_prop

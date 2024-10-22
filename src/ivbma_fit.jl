@@ -17,102 +17,14 @@ struct PostSampleIVBMA
     ν::Vector{Float64}
 end
 
-
-
 """
-    Functions to sample from the conditional posteriors and compute marginal likelihoods.
+    Propose a new model by permuting one inclusion index (MC3)
 """
-function post_sample_outcome(y, U, U_t_U, η, Σ, g)
-    n = length(y)
-    ψ = calc_psi(Σ)
-
-    y_bar = Statistics.mean(y)
-    η_bar = Statistics.mean(η)
-
-    if (rank(U_t_U) < size(U_t_U, 1))
-        error("Non-full rank model!")
-    end
-
-    B = g/(g+1) * inv(U_t_U)
-
-    α = rand(Normal(y_bar - Σ[1,2]/Σ[2,2] * η_bar, ψ^2/n))
-
-    Mean = B * U' * (y - Σ[1,2]/Σ[2,2] * η)
-    β_tilde = rand(MvNormal(Mean, Symmetric(ψ^2 * B)))
-    τ = β_tilde[1]
-    β = β_tilde[2:end]    
-    
-    return (α = α, τ = τ, β = β)
-end
-
-function post_sample_treatment(x, V, V_t_V, ϵ, Σ, g)
-    n = length(x)
-
-    if (rank(V_t_V) < size(V_t_V, 1))
-        error("Non-full rank model!")
-    end
-
-    ψ = calc_psi(Σ)
-    ϵ_bar = Statistics.mean(ϵ)
-
-    a = Σ[1,2]^2/(Σ[2,2] * ψ^2) + 1
-    A = (g / (a*g + 1)) * inv(V_t_V)
-
-    γ = rand(Normal(-Σ[1,2]/a * ϵ_bar, Σ[2,2]/(a*n))) 
-
-    δ = rand(MvNormal(a * A * V' * (x - (Σ[1,2]/Σ[1,1]) * ϵ), Σ[2,2] * Symmetric(A)))
-    
-    return (γ = γ, δ = δ)
-end
-
-function post_sample_cov(ϵ, η, ν)
-    n = length(ϵ)
-
-    Q = [ϵ η]' * [ϵ η]
-    if any(map(!isfinite, Q))
-        error("Infinite sample covariance: Try increasing ν!")
-    end
-    Σ = rand(InverseWishart(ν + n, I + Q))
-    return (Σ = Σ)
-end
-
-function marginal_likelihood_outcome(y, U, U_t_U, η, Σ, g)
-    n = length(y)
-    k = size(U, 2)
-
-    if (rank(U_t_U) < size(U_t_U, 1))
-        error("Non-full rank model!")
-    end
-    
-    ψ = calc_psi(Σ)
-    y_bar = Statistics.mean(y)
-    η_bar = Statistics.mean(η)
-
-    y_tilde = y - Σ[1,2]/Σ[2,2] * η 
-    s = y_tilde' * (I - g/(g+1) * (U * inv(U_t_U) * U')) * y_tilde - n * (y_bar - Σ[1,2]/Σ[2,2] * η_bar)^2
-    
-    log_ml =  (-(k)/2)*log(g+1) - s/(2*ψ^2)
-    return log_ml
-end
-
-function marginal_likelihood_treatment(x, V, V_t_V, ϵ, Σ, g)
-    n = length(x)
-    k = size(V, 2)
-
-    if (rank(V_t_V) < size(V_t_V, 1))
-        error("Non-full rank model!")
-    end
-
-    ψ = calc_psi(Σ)
-    ϵ_bar = Statistics.mean(ϵ)
-
-    a = Σ[1,2]^2/(Σ[2,2] * ψ^2) + 1
-
-    x_tilde = (x - (Σ[1,2]/Σ[1,1]) * ϵ)
-    t = (Σ[2,2]/Σ[1,1]) * ϵ'ϵ + x'x - 2 * (Σ[1,2]/Σ[1,1]) * ϵ'x - n * (Σ[1,2]^2/a^2) * ϵ_bar^2 - (a*g / (a*g+1)) * (x_tilde' * (V * inv(V_t_V) * V') * x_tilde)
-    
-    log_ml = (-k/2)*log(1 + g*a) - a*t/(2*Σ[2,2])
-    return log_ml
+function mc3_proposal(curr)
+    prop = deepcopy(curr)
+    ind = sample((1:length(curr)))
+    prop[ind] = !prop[ind]
+    return prop
 end
 
 """
@@ -201,10 +113,8 @@ function ivbma(
         propVar_g_L = adjust_variance(propVar_g_L, acc_g_L, i)
         
         # Step 1.2: Update outcome model
-        curr = L_incl[i-1,:]
-        prop = L_incl[i-1,:]
-        ind = sample((1:k))
-        prop[ind] = !prop[ind]
+        curr = copy(L_incl[i-1,:])
+        prop = mc3_proposal(L_incl[i-1,:])
 
         U_prop = [x W_L[:,prop]]
         U_t_U_prop = U_prop'U_prop
@@ -225,6 +135,7 @@ function ivbma(
         draw = post_sample_outcome(y, U, U_t_U, η, Σ_store[i-1], g_L_store[i])
         α_store[i] = draw.α
         τ_store[i] = draw.τ
+        
         β_store[i, L_incl[i,:]] = draw.β
         
 
@@ -249,10 +160,8 @@ function ivbma(
         propVar_g_M = adjust_variance(propVar_g_M, acc_g_M, i)
 
         # Step 2.2: Update treatment model
-        curr = M_incl[i-1,:]
-        prop = M_incl[i-1,:]
-        ind = sample(1:(k+p))
-        prop[ind] = !prop[ind]
+        curr = copy(M_incl[i-1,:])
+        prop = mc3_proposal(M_incl[i-1,:])
 
         V_prop = W_M[:, prop]
         V_t_V_prop = V_prop'V_prop
