@@ -4,7 +4,7 @@ using LinearAlgebra, Distributions, Statistics
 using InvertedIndices, SpecialFunctions
 using StatsPlots, Infiltrator
 
-export ivbma, ivbma_2c, iv_fit, lpd, posterior_predictive, plot
+export ivbma, ivbma_2c, iv_fit, ivbma_pln, lpd, posterior_predictive, plot
 
 
 include("ivbma_priors.jl")

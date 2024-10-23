@@ -21,13 +21,13 @@ function post_sample_outcome_pi(y_tilde, U, b, B, ψ, g)
 end
 
 function marginal_likelihood_outcome_pi(y_tilde, U, b, B, ψ, g)
-    n = length(y)
+    n = length(y_tilde)
     ι = ones(n)
 
     IbP = (I - b * (ι * inv(ι'ι) * ι'))
     s = y_tilde' * IbP * y_tilde - y_tilde' * IbP * U * B * U' * IbP * y_tilde
     
-    log_ml =  (1/2) * (log(det(B)) - log(det(g * U'U))) - exp(-s/(2*ψ^2))
+    log_ml =  (1/2) * (log(det(B)) - log(det(g * inv(U'U)))) - exp(-s/(2*ψ^2))
     return log_ml
 end
 
@@ -48,10 +48,10 @@ end
 """
     Barker proposal, see Zens & Steel (2024) and Livingstone & Zanella (2022)
 """
-function barker_proposal(x, q, GradCurr)
+function barker_proposal(x, q, GradCurr, PropVar)
     n = length(x)
     
-    Qi = rand(Normal(0, PropVar), n)
+    Qi = [rand(Normal(0, PropVar[j])) for j in 1:n]
     bi = 2 * (rand(n) .< (1 ./ (1 .+ exp.(-GradCurr .* Qi)))) .- 1
 
     q_prop = q .+ Qi .* bi
@@ -62,10 +62,8 @@ function barker_correction_term(curr, prop, GradCurr, GradProp)
     beta1 = -GradProp .* (curr .- prop)
     beta2 = -GradCurr .* (prop .- curr)
 
-    zeros = zeros(length(curr))
-
-    result = -(max.(beta1, zeros) .+ log1p.(exp.(-abs.(beta1)))) .+
-             (max.(beta2, zeros) .+ log1p.(exp.(-abs.(beta2))))
+    result = -(max.(beta1, zeros(length(curr))) .+ log1p.(exp.(-abs.(beta1)))) .+
+             (max.(beta2, zeros(length(curr))) .+ log1p.(exp.(-abs.(beta2))))
 
     return result
 end
@@ -89,7 +87,6 @@ function ivbma_pln(
 )
 
     # centre all regressors
-    x = x .- mean(x)
     Z = Z .- mean(Z; dims = 1)
     W = W .- mean(W; dims = 1)
     
@@ -106,7 +103,7 @@ function ivbma_pln(
     end
 
     q_store = Matrix{Float64}(undef, iter, n)
-    q_store[1,:] = zeros(n)
+    q_store[1,:] = rand(Normal(0, 1), n)
 
     α_store = zeros(iter)
     τ_store = zeros(iter)
@@ -123,6 +120,8 @@ function ivbma_pln(
 
     ν_store = zeros(iter); ν_store[1] = 10
     propVar_ν = 1/2; acc_ν = 0
+
+    propVar_q = ones(n) * 0.1
 
     W_L = W
     W_M = [Z W]
@@ -143,36 +142,46 @@ function ivbma_pln(
 
     for i in 2:iter
 
-        
+        # Step 0.0: Precomputations
         ψ = calc_psi(Σ_store[i-1])
+        cov_ratio = (Σ_store[i-1][1,2] / Σ_store[i-1][2,2])
 
         # Step 0.1: Draw latent Gaussian q
-        q_curr = q_store[i,:]
-        GradCurr = (x - exp.(q_curr)) - η / Σ[2, 2]
-        q_prop = barker_proposal(x, q_store[i,:], GradCurr)
+        q_curr = q_store[i-1,:]
+        GradCurr = (x - exp.(q_curr)) - η / Σ_store[i-1][2, 2]
+        q_prop = barker_proposal(x, q_curr, GradCurr, propVar_q)
         η_prop = q_prop - (γ_store[i-1]*ones(n) + W_M * δ_store[i-1,:])
-        GradProp = (x - exp.(q_prop)) - η_prop / Σ[2, 2]
+        GradProp = (x - exp.(q_prop)) - η_prop / Σ_store[i-1][2, 2]
 
         Mean_y = α_store[i-1] * ones(n) + [x W_L] * [τ_store[i-1]; β_store[i-1, :]]
-        Mean_prior = γ_store[i-1] * ones(n) + W_M * δ_store[i-1]
+        Mean_prior = γ_store[i-1] * ones(n) + W_M * δ_store[i-1, :]
 
         post_curr = [(
-            logpdf(Normal(Mean_y[j] + Σ[1,2]/Σ[2,2] * η[j], ψ^2), y[j])
+            logpdf(Normal(Mean_y[j] + cov_ratio * η[j], ψ^2), y[j])
             + logpdf(Poisson(exp(q_curr[j])), x[j])
-            + logpdf(Normal(Mean_prior[j], Σ[2,2]), q_curr[j])
-            for j in eachindex(q_curr)
-        ]
+            + logpdf(Normal(Mean_prior[j], Σ_store[i-1][2,2]), q_curr[j])
+        ) for j in eachindex(q_curr)]
 
         post_prop = [(
-            logpdf(Normal(Mean_y[j] + Σ[1,2]/Σ[2,2] * η_prop[j], ψ^2), y[j])
+            logpdf(Normal(Mean_y[j] + cov_ratio * η_prop[j], ψ^2), y[j])
             + logpdf(Poisson(exp(q_prop[j])), x[j])
-            + logpdf(Normal(Mean_prior[j], Σ[2,2]), q_prop[j])
-            for j in eachindex(q_prop)
-        ]
+            + logpdf(Normal(Mean_prior[j], Σ_store[i-1][2,2]), q_prop[j])
+        ) for j in eachindex(q_prop)]
 
+        corr_term = barker_correction_term(q_curr, q_prop, GradCurr, GradProp)
+        acc_prob = min.(ones(n), exp.(post_prop - post_curr + corr_term))
+        acc = rand(n) .< acc_prob
 
-        # Step 0.2: Update 'residuals'
-        y_tilde = y - Σ[1,2]/Σ[2,2] * η
+        q_store[i, acc] = q_prop[acc]
+        q_store[i, .!acc] = q_curr[.!acc]
+
+        # global scale adaptation
+        l_propVar_q2 = log.(propVar_q.^2) .+ (i^(-0.6)) .* (acc_prob .- 0.57)
+        propVar_q = sqrt.(exp.(l_propVar_q2))
+
+        # Update 'residuals'
+        η[acc] = η_prop[acc]
+        y_tilde = y - cov_ratio * η
 
         # Step 1.1: Draw g_l
         curr = g_L_store[i-1]
@@ -199,7 +208,7 @@ function ivbma_pln(
         prop = mc3_proposal(L_incl[i-1,:])
 
         U_prop = [x W_L[:,prop]]
-        B_prop = calc_bB(U_prop, Σ[i-1], κ2, g_L_store[i])
+        b, B_prop = calc_bB(U_prop, Σ_store[i-1], κ2, g_L_store[i])
 
         post_prop = marginal_likelihood_outcome_pi(y_tilde, U_prop, b, B_prop, ψ, g_L_store[i]) + model_prior(prop, k, 1, m_o)
         post_curr = marginal_likelihood_outcome_pi(y_tilde, U, b, B, ψ, g_L_store[i]) + model_prior(curr, k, 1, m_o)
@@ -298,7 +307,8 @@ function ivbma_pln(
         M_incl[(burn+1):end,:],
         g_L_store[(burn+1):end],
         g_M_store[(burn+1):end],
-        ν_store[(burn+1):end]
+        ν_store[(burn+1):end],
+        q_store[(burn+1):end,:]
     )
 end
 

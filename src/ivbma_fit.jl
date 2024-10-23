@@ -15,6 +15,7 @@ struct PostSampleIVBMA
     g_L::Vector{Float64}
     g_M::Vector{Float64}
     ν::Vector{Float64}
+    q::Matrix{Float64}
 end
 
 """
@@ -217,7 +218,8 @@ function ivbma(
         M_incl[(burn+1):end,:],
         g_L_store[(burn+1):end],
         g_M_store[(burn+1):end],
-        ν_store[(burn+1):end]
+        ν_store[(burn+1):end],
+        Matrix(undef, 0, 0)
     )
 end
 
@@ -396,7 +398,8 @@ function ivbma(
         M_incl[(burn+1):end,:],
         g_L_store[(burn+1):end],
         g_M_store[(burn+1):end],
-        []
+        [],
+        Matrix(undef, 0, 0)
     )
 end
 
