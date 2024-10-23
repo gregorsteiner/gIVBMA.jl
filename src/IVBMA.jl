@@ -2,7 +2,7 @@ module IVBMA
 
 using LinearAlgebra, Distributions, Statistics
 using InvertedIndices, SpecialFunctions
-using StatsPlots, Infiltrator
+using StatsPlots
 
 export ivbma, lpd, posterior_predictive, plot
 
@@ -15,7 +15,29 @@ include("ivbma_pln.jl")
 include("ivbma_tools.jl")
 
 """
-    Main wrapper function.
+    Sample from the joint posterior function of all parameters and models.
+
+    There are currently two ways to use this function: One can either provide a matrix of potential instruments Z and a matrix of potential covariates W.
+    If both are given, Z can only be included in the treatment model, while W can be included in both models. If only one matrix of potential instruments and covariates
+    is specified all of them can be included in both models. The two-component g-prior can only be used in the first case.
+
+    # Arguments
+    - `y::AbstractVector{<:Real}` a vector containing the outcome
+    - `x::AbstractVector{<:Real}` a vector containing the endogenous variable or treatment
+    - `Z::AbstractMatrix{<:Real}` a matrix of potential instruments
+    - `W::AbstractMatrix{<:Real}` a matrix of exogenous control variates
+    - `iter::Integer = 2000` the number of iterations of the Gibbs sampler
+    - `burn::Integer = 1000` the number of initial iteratios to discard as burn-in (should be less than `iter`)
+    - `two_comp::Bool = false` if true the two-componentn g-prior is used for the treatment parameters
+    - `pln::Bool = false` if true the treatment is assumed to follow a Poisson Log-Normal distribution
+    - `κ2` the prior variance on the intercept (only relevant for the Poisson Log-Normal model)
+    - `ν_prior::Function = ν -> log(jp_ν(ν, size(Z, 2) + size(W, 2) + 3))` the hyperprior on the covariance degrees of freedom ν
+    - `g_L_prior` the hyperprior on g for the outcome model (defaults to the hyper-g/n prior with a = 3)
+    - `g_M_prior` the hyperprior on g for the treatment model (defaults to the hyper-g/n prior with a = 3)
+    - `g_l_prior` the hyperprior on the larger g in the two-component prior 
+    - `g_s_prior` the hyperprior on the smaller g in the two-component prior 
+    - `m::Union{AbstractVector, Nothing} = nothing` the prior mean model size (defaults to k/2 where k is the number of covariates)
+
 """
 function ivbma(
     y::AbstractVector{<:Real},
@@ -63,10 +85,6 @@ function ivbma(
     return res
 end
 
-"""
-    A second method with potentially invalid instruments, i.e. the user only provides one matrix of potential instruments,
-    all of which could be included in both the outcome and treatment model.
-"""
 function ivbma(
     y::AbstractVector{<:Real},
     x::AbstractVector{<:Real},
