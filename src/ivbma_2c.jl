@@ -1,107 +1,26 @@
 
 """
-    A structure to store the posterior sample in
-"""
-struct PostSampleIVBMA2C
-    α::Vector{Float64}
-    τ::Vector{Float64}
-    β::Matrix{Float64}
-    γ::Vector{Float64}
-    δ::Matrix{Float64}
-    Σ::Array{Matrix{Float64}}
-    L::Matrix{Bool}
-    M::Matrix{Bool}
-    g_L::Vector{Float64}
-    g_l::Vector{Float64}
-    g_s::Vector{Float64}
-    ν::Vector{Float64}
-end
-
-
-"""
-    Modified functions for the treatment posterior and marginal likelihood based on the two-component prior.
-"""
-function post_sample_treatment_2c(x, V, V_t_V, ϵ, Σ, G)
-    n = length(x)
-
-    if (rank(V_t_V) < size(V_t_V, 1))
-        error("Non-full rank model!")
-    end
-
-    ψ = calc_psi(Σ)
-    a = Σ[1,2]^2/(Σ[2,2] * ψ^2) + 1
-    ϵ_bar = Statistics.mean(ϵ)
-
-    A = inv(a * V_t_V + inv(G) * V_t_V * inv(G))
-
-    γ = rand(Normal(-Σ[1,2]/a * ϵ_bar, Σ[2,2]/(a*n))) 
-    δ = rand(MvNormal(a * A * V' * (x - (Σ[1,2]/Σ[1,1]) * ϵ), Σ[2,2] * Symmetric(A)))
-
-    return (γ = γ, δ = δ)
-end
-
-
-function marginal_likelihood_treatment_2c(x, V, V_t_V, ϵ, Σ, G)
-    n = length(x)
-
-    if (rank(V_t_V) < size(V_t_V, 1))
-        error("Non-full rank model!")
-    end
-
-    ψ = calc_psi(Σ)
-    a = Σ[1,2]^2/(Σ[2,2] * ψ^2) + 1
-    ϵ_bar = Statistics.mean(ϵ)
-
-    A = inv(a * V_t_V + inv(G) * V_t_V * inv(G))
-    
-    x_tilde = (x - (Σ[1,2]/Σ[1,1]) * ϵ)
-    t = (Σ[2,2]/Σ[1,1]) * ϵ'ϵ + x'x - 2 * (Σ[1,2]/Σ[1,1]) * ϵ'x - n * (Σ[1,2]^2/a^2) * ϵ_bar^2 - (x_tilde' * V * A * V' * x_tilde)
-
-    log_ml = (1/2)*(log(det(A)) - log(det(G* inv(V_t_V) * G))) - a*t/(2*Σ[2,2])
-    return log_ml
-end
-
-"""
-    Helper function to construct the G matrix.
-"""
-function G_constr(g_s, g_l, ind, p, k)
-    return Diagonal([repeat([sqrt(g_s)], p); repeat([sqrt(g_l)], k)])[ind, ind]
-end
-
-
-"""
     Fit IVBMA with the two-component prior and hyperpriors on g and ν.
 """
-function ivbma_2c(
+function ivbma_mcmc_2c(
     y::AbstractVector{<:Real},
     x::AbstractVector{<:Real},
     Z::AbstractMatrix{<:Real},
-    W::AbstractMatrix{<:Real};
-    iter::Integer = 2000,
-    burn::Integer = 1000,
-    ν_prior::Function = ν -> log(jp_ν(ν, size(Z, 2) + size(W, 2) + 3)),
-    g_L_prior::Function = g -> log(hyper_g_n(g; a = 3, n = length(y))),
-    g_l_prior::Function = g -> log(hyper_g_n(g; a = 3, n = length(y))),
-    g_s_prior::Function = g -> log(hyper_g_n(g; a = 4, n = length(y))),
-    m::Union{AbstractVector, Nothing} = nothing
+    W::AbstractMatrix{<:Real},
+    iter::Integer,
+    burn::Integer,
+    ν_prior::Function,
+    g_L_prior::Function,
+    g_l_prior::Function,
+    g_s_prior::Function,
+    m::AbstractVector
 )
-
-    # centre all regressors
-    x = x .- mean(x)
-    Z = Z .- mean(Z; dims = 1)
-    W = W .- mean(W; dims = 1)
     
     n = size(W, 1)
     k = size(W, 2)
     p = size(Z, 2)
  
-    if isnothing(m)
-        m_o = k/2
-        m_t = (k+p)/2
-    else
-        m_o = m[1]
-        m_t = m[2]
-    end
+    m_o = m[1]; m_t = m[2]
 
     α_store = zeros(iter)
     τ_store = zeros(iter)
@@ -158,10 +77,8 @@ function ivbma_2c(
         propVar_g_L = adjust_variance(propVar_g_L, acc_g_L, i)
         
         # Step 1.2: Update outcome model
-        curr = L_incl[i-1,:]
-        prop = L_incl[i-1,:]
-        ind = sample((1:k))
-        prop[ind] = !prop[ind]
+        curr = copy(L_incl[i-1,:])
+        prop = mc3_proposal(L_incl[i-1,:])
 
         U_prop = [x W_L[:,prop]]
         U_t_U_prop = U_prop'U_prop
@@ -224,10 +141,8 @@ function ivbma_2c(
 
 
         # Step 2.3: Update treatment model
-        curr = M_incl[i-1,:]
-        prop = M_incl[i-1,:]
-        ind = sample(1:(k+p))
-        prop[ind] = !prop[ind]
+        curr = copy(M_incl[i-1,:])
+        prop = mc3_proposal(M_incl[i-1,:])
 
         V_prop = W_M[:, prop]
         V_t_V_prop = V_prop'V_prop
@@ -272,7 +187,7 @@ function ivbma_2c(
         propVar_ν = adjust_variance(propVar_ν, acc_ν, i)
     end
 
-    return PostSampleIVBMA2C(
+    return PostSample(
         α_store[(burn+1):end],
         τ_store[(burn+1):end],
         β_store[(burn+1):end,:],
@@ -281,9 +196,8 @@ function ivbma_2c(
         Σ_store[(burn+1):end],
         L_incl[(burn+1):end,:],
         M_incl[(burn+1):end,:],
-        g_L_store[(burn+1):end],
-        g_l_store[(burn+1):end],
-        g_s_store[(burn+1):end],
-        ν_store[(burn+1):end]
+        [g_L_store[(burn+1):end] g_l_store[(burn+1):end] g_s_store[(burn+1):end]],
+        ν_store[(burn+1):end],
+        Matrix(undef, 0, 0)
     )
 end
