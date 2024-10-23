@@ -39,7 +39,7 @@ end
 """
     Obtain a sample from the posterior predictive of y|x.
 """
-function posterior_predictive(PostSample::Union{PostSampleIV, PostSampleIVBMA, PostSampleIVBMA2C}, x::AbstractVector, Z::AbstractMatrix, W::AbstractMatrix)
+function posterior_predictive(PostSample::PostSample, x::AbstractVector, Z::AbstractMatrix, W::AbstractMatrix)
     n = length(x)
     y = Matrix{Float64}(undef, length(PostSample.α), n)
     for i in eachindex(PostSample.α)
@@ -54,7 +54,7 @@ end
 """
     Compute the log predictive score on a holdout dataset.
 """
-function lpd(PostSample::Union{PostSampleIV, PostSampleIVBMA, PostSampleIVBMA2C}, y::AbstractVector, x::AbstractVector, Z::AbstractMatrix, W::AbstractMatrix)
+function lpd(PostSample::PostSample, y::AbstractVector, x::AbstractVector, Z::AbstractMatrix, W::AbstractMatrix)
     n = length(y)
     pd = Vector{Float64}(undef, length(PostSample.α))
     for i in eachindex(PostSample.α)
@@ -67,7 +67,7 @@ function lpd(PostSample::Union{PostSampleIV, PostSampleIVBMA, PostSampleIVBMA2C}
     return -log(mean(pd))
 end
 
-function lpd(PostSample::Union{PostSampleIV, PostSampleIVBMA, PostSampleIVBMA2C}, y::AbstractVector, x::AbstractVector, Z::AbstractMatrix)
+function lpd(PostSample::PostSample, y::AbstractVector, x::AbstractVector, Z::AbstractMatrix)
     n = length(y)
     pd = Vector{Float64}(undef, length(PostSample.α))
     for i in eachindex(PostSample.α)
@@ -81,10 +81,11 @@ function lpd(PostSample::Union{PostSampleIV, PostSampleIVBMA, PostSampleIVBMA2C}
 end
 
 """
-    Plot method for IV, IVBMA or IVBMA_2c objects.
+    Plot method for IVBMA objects.
     This function plots traceplots and posterior densities of τ and σ₁₂.
 """
-function StatsPlots.plot(ivbma::PostSampleIV)
+
+function StatsPlots.plot(ivbma::PostSample)
     tp_τ = plot(ivbma.τ, label = "", ylabel = "τ")
     dp_τ = density(ivbma.τ, fill = true, label = "p(τ | D)")
 
@@ -92,45 +93,7 @@ function StatsPlots.plot(ivbma::PostSampleIV)
     tp_σ12 = plot(σ12, ylabel = "σ₁₂", label = "")
     dp_σ12 = density(σ12, fill = true, label = "p(σ₁₂ | D)")
 
-    p = plot(
-        tp_τ, dp_τ,
-        tp_σ12, dp_σ12,
-        layout = (2, 2)
-        )
-    return p
-end
-
-function StatsPlots.plot(ivbma::PostSampleIVBMA)
-    tp_τ = plot(ivbma.τ, label = "", ylabel = "τ")
-    dp_τ = density(ivbma.τ, fill = true, label = "p(τ | D)")
-
-    σ12 = map(x -> x[1,2], ivbma.Σ)
-    tp_σ12 = plot(σ12, ylabel = "σ₁₂", label = "")
-    dp_σ12 = density(σ12, fill = true, label = "p(σ₁₂ | D)")
-
-    g = [ivbma.g_L ivbma.g_M]
-    tp_g = plot(g, yaxis = :log, ylabel = "g", label = ["g_L" "g_M"])
-    model_size = plot([sum(ivbma.L, dims = 2) sum(ivbma.M, dims = 2)], ylabel = "Model Size", label = ["L" "M"])
-
-    p = plot(
-        tp_τ, dp_τ,
-        tp_σ12, dp_σ12,
-        tp_g, model_size,
-        layout = (3, 2)
-        )
-    return p
-end
-
-function StatsPlots.plot(ivbma::PostSampleIVBMA2C)
-    tp_τ = plot(ivbma.τ, label = "", ylabel = "τ")
-    dp_τ = density(ivbma.τ, fill = true, label = "p(τ | D)")
-
-    σ12 = map(x -> x[1,2], ivbma.Σ)
-    tp_σ12 = plot(σ12, ylabel = "σ₁₂", label = "")
-    dp_σ12 = density(σ12, fill = true, label = "p(σ₁₂ | D)")
-
-    g = [ivbma.g_L ivbma.g_s ivbma.g_l]
-    tp_g = plot(g, yaxis = :log, ylabel = "g", label = ["g_L" "g_s" "g_l"])
+    tp_g = plot(ivbma.g, yaxis = :log, ylabel = "g", label = ["g_L" "g_M"])
     model_size = plot([sum(ivbma.L, dims = 2) sum(ivbma.M, dims = 2)], ylabel = "Model Size", label = ["L" "M"])
 
     p = plot(

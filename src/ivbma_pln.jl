@@ -72,35 +72,25 @@ end
 """
     Fit Gaussian-PLN (Gaussian outcome, Poisson treatment) ivbma models with a regular g-prior (+proper prior on the intercept) and hyperpriors on g and ν.
 """
-function ivbma_pln(
+function ivbma_mcmc_pln(
     y::AbstractVector{<:Real},
     x::AbstractVector{<:Real},
     Z::AbstractMatrix{<:Real},
-    W::AbstractMatrix{<:Real};
-    iter::Integer = 2000,
-    burn::Integer = 1000,
-    κ2 = 100,
-    ν_prior::Function = ν -> log(jp_ν(ν, size(Z, 2) + size(W, 2) + 3)),
-    g_L_prior::Function = g -> log(hyper_g_n(g; a = 3, n = length(y))),
-    g_M_prior::Function = g -> log(hyper_g_n(g; a = 3, n = length(y))),
-    m::Union{AbstractVector, Nothing} = nothing
+    W::AbstractMatrix{<:Real},
+    iter::Integer,
+    burn::Integer,
+    κ2,
+    ν_prior::Function,
+    g_L_prior::Function,
+    g_M_prior::Function,
+    m::AbstractVector
 )
 
-    # centre all regressors
-    Z = Z .- mean(Z; dims = 1)
-    W = W .- mean(W; dims = 1)
-    
     n = size(W, 1)
     k = size(W, 2)
     p = size(Z, 2)
  
-    if isnothing(m)
-        m_o = k/2
-        m_t = (k+p)/2
-    else
-        m_o = m[1]
-        m_t = m[2]
-    end
+    m_o = m[1]; m_t = m[2]
 
     q_store = Matrix{Float64}(undef, iter, n)
     q_store[1,:] = rand(Normal(0, 1), n)
@@ -296,7 +286,7 @@ function ivbma_pln(
         propVar_ν = adjust_variance(propVar_ν, acc_ν, i)
     end
 
-    return PostSampleIVBMA(
+    return PostSample(
         α_store[(burn+1):end],
         τ_store[(burn+1):end],
         β_store[(burn+1):end,:],
@@ -305,8 +295,7 @@ function ivbma_pln(
         Σ_store[(burn+1):end],
         L_incl[(burn+1):end,:],
         M_incl[(burn+1):end,:],
-        g_L_store[(burn+1):end],
-        g_M_store[(burn+1):end],
+        [g_L_store[(burn+1):end] g_M_store[(burn+1):end]],
         ν_store[(burn+1):end],
         q_store[(burn+1):end,:]
     )
