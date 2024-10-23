@@ -56,6 +56,8 @@ function ivbma(
         res = ivbma_mcmc_2c(y, x, Z, W, iter, burn, ν_prior, g_L_prior, g_l_prior, g_s_prior, m)
     elseif pln && !two_comp
         res = ivbma_mcmc_pln(y, x, Z, W, iter, burn, κ2, ν_prior,  g_L_prior, g_M_prior, m)
+    elseif pln && two_comp
+        res = ivbma_mcmc_pln_2c(y, x, Z, W, iter, burn, κ2, ν_prior,  g_L_prior, g_l_prior, g_s_prior, m)
     end
 
     return res
