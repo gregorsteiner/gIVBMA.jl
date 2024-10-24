@@ -265,7 +265,6 @@ function ivbma_mcmc_pln(
 
 
         # Step 3: Update covariance Matrix
-        #@infiltrate
         η = q_store[i,:] - (γ_store[i] * ones(n) + W_M * δ_store[i,:])
         Σ_store[i] = post_sample_cov(ϵ, η, ν_store[i-1]) 
 
