@@ -88,8 +88,8 @@ function ivbma_mcmc(
         curr = g_L_store[i-1]
         prop = rand(LogNormal(log(curr), propVar_g_L))
 
-        post_prop = marginal_likelihood_outcome(y, U, U_t_U, η, Σ_store[i-1], prop) + g_L_prior(prop) - logpdf(LogNormal(log(curr), propVar_g_L), prop)
-        post_curr = marginal_likelihood_outcome(y, U, U_t_U, η, Σ_store[i-1], curr) + g_L_prior(curr) - logpdf(LogNormal(log(prop), propVar_g_L), curr)
+        post_prop = marginal_likelihood_outcome(y, U, U_t_U, η, Σ_store[i-1], prop) + g_L_prior(prop) + log(prop)
+        post_curr = marginal_likelihood_outcome(y, U, U_t_U, η, Σ_store[i-1], curr) + g_L_prior(curr) + log(curr)
         acc = exp(post_prop - post_curr)
         
         if rand() < min(acc, 1)
@@ -135,8 +135,8 @@ function ivbma_mcmc(
         curr = g_M_store[i-1]
         prop = rand(LogNormal(log(curr), propVar_g_M))
 
-        post_prop = marginal_likelihood_treatment(x, V, V_t_V, ϵ, Σ_store[i-1], prop) + g_M_prior(prop) - logpdf(LogNormal(log(curr), propVar_g_M), prop)
-        post_curr = marginal_likelihood_treatment(x, V, V_t_V, ϵ, Σ_store[i-1], curr) + g_M_prior(curr) - logpdf(LogNormal(log(prop), propVar_g_M), curr)
+        post_prop = marginal_likelihood_treatment(x, V, V_t_V, ϵ, Σ_store[i-1], prop) + g_M_prior(prop) + log(prop)
+        post_curr = marginal_likelihood_treatment(x, V, V_t_V, ϵ, Σ_store[i-1], curr) + g_M_prior(curr) + log(curr)
         acc = exp(post_prop - post_curr)
         
         if rand() < min(acc, 1)

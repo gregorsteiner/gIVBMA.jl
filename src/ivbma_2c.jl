@@ -61,10 +61,10 @@ function ivbma_mcmc_2c(
         
         # Step 1.1: Draw g_L
         curr = g_L_store[i-1]
-        prop = rand(Truncated(LogNormal(log(curr), propVar_g_L), 1, Inf))
+        prop = rand(LogNormal(log(curr), propVar_g_L))
 
-        post_prop = marginal_likelihood_outcome(y, U, U_t_U, η, Σ_store[i-1], prop) + g_L_prior(prop) - logpdf(LogNormal(log(curr), propVar_g_L), prop)
-        post_curr = marginal_likelihood_outcome(y, U, U_t_U, η, Σ_store[i-1], curr) + g_L_prior(curr) - logpdf(LogNormal(log(prop), propVar_g_L), curr)
+        post_prop = marginal_likelihood_outcome(y, U, U_t_U, η, Σ_store[i-1], prop) + g_L_prior(prop) + log(prop)
+        post_curr = marginal_likelihood_outcome(y, U, U_t_U, η, Σ_store[i-1], curr) + g_L_prior(curr) + log(curr)
         acc = exp(post_prop - post_curr)
         
         if rand() < min(acc, 1)
@@ -107,10 +107,10 @@ function ivbma_mcmc_2c(
 
         # Step 2.1: Update g_l
         curr = g_l_store[i-1]
-        prop = rand(Truncated(LogNormal(log(curr), propVar_g_l), 1, Inf))
+        prop = rand(LogNormal(log(curr), propVar_g_l))
 
-        post_prop = marginal_likelihood_treatment_2c(x, V, V_t_V, ϵ, Σ_store[i-1], G_constr(g_s_store[i-1], prop, M_incl[i-1,:], p, k)) + g_l_prior(prop) - logpdf(LogNormal(log(curr), propVar_g_l), prop)
-        post_curr = marginal_likelihood_treatment_2c(x, V, V_t_V, ϵ, Σ_store[i-1], G_constr(g_s_store[i-1], curr, M_incl[i-1,:], p, k)) + g_l_prior(curr) - logpdf(LogNormal(log(prop), propVar_g_l), curr)
+        post_prop = marginal_likelihood_treatment_2c(x, V, V_t_V, ϵ, Σ_store[i-1], G_constr(g_s_store[i-1], prop, M_incl[i-1,:], p, k)) + g_l_prior(prop) + log(prop)
+        post_curr = marginal_likelihood_treatment_2c(x, V, V_t_V, ϵ, Σ_store[i-1], G_constr(g_s_store[i-1], curr, M_incl[i-1,:], p, k)) + g_l_prior(curr) + log(curr)
         acc = exp(post_prop - post_curr)
         
         if rand() < min(acc, 1)
@@ -124,10 +124,10 @@ function ivbma_mcmc_2c(
 
         # Step 2.2: Update g_s
         curr = g_s_store[i-1]
-        prop = rand(Truncated(LogNormal(log(curr), propVar_g_s), 1, Inf))
+        prop = rand(LogNormal(log(curr), propVar_g_s))
 
-        post_prop = marginal_likelihood_treatment_2c(x, V, V_t_V, ϵ, Σ_store[i-1], G_constr(prop, g_l_store[i], M_incl[i-1,:], p, k)) + g_s_prior(prop) - logpdf(LogNormal(log(curr), propVar_g_s), prop)
-        post_curr = marginal_likelihood_treatment_2c(x, V, V_t_V, ϵ, Σ_store[i-1], G_constr(curr, g_l_store[i], M_incl[i-1,:], p, k)) + g_s_prior(curr) - logpdf(LogNormal(log(prop), propVar_g_s), curr)
+        post_prop = marginal_likelihood_treatment_2c(x, V, V_t_V, ϵ, Σ_store[i-1], G_constr(prop, g_l_store[i], M_incl[i-1,:], p, k)) + g_s_prior(prop) + log(prop)
+        post_curr = marginal_likelihood_treatment_2c(x, V, V_t_V, ϵ, Σ_store[i-1], G_constr(curr, g_l_store[i], M_incl[i-1,:], p, k)) + g_s_prior(curr) + log(curr)
         acc = exp(post_prop - post_curr)
         
         if rand() < min(acc, 1)

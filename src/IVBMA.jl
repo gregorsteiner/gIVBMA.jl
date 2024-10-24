@@ -57,6 +57,11 @@ function ivbma(
     m::Union{AbstractVector, Nothing} = nothing
 )
 
+    # Check that x is not constant
+    if length(unique(x)) == 1
+        error("The treatment x is constant!")
+    end
+
     # centre regressors (don't centre treatment if the treatment model is a Poisson Log-normal)
     if !pln
         x = x .- mean(x)
@@ -100,6 +105,11 @@ function ivbma(
     m::Union{AbstractVector, Nothing} = nothing
 )
 
+    # Check that x is not constant
+    if length(unique(x)) == 1
+        error("The treatment x is constant!")
+    end
+    
     # Add error for two-component prior (which only makes sense if one provides instruments and exogenous covariates)
     if two_comp
         error("The two-component prior cannot be used without exogenous covariates.")
