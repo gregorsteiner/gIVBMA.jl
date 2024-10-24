@@ -3,7 +3,6 @@ module IVBMA
 using LinearAlgebra, Distributions, Statistics
 using InvertedIndices, SpecialFunctions
 using StatsPlots
-using Infiltrator
 
 export ivbma, lpd, posterior_predictive, plot
 
