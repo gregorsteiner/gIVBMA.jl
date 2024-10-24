@@ -195,7 +195,6 @@ function ivbma_mcmc_pln(
         propVar_g_L = adjust_variance(propVar_g_L, acc_g_L, i)
         
         # Step 1.2: Update outcome model
-        @infiltrate
         curr = copy(L_incl[i-1,:])
         prop = mc3_proposal(L_incl[i-1,:])
 
