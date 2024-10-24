@@ -177,7 +177,6 @@ function ivbma_mcmc_pln(
         curr = g_L_store[i-1]
         prop = rand(LogNormal(log(curr), propVar_g_L))
 
-        @infiltrate
         b, B = calc_bB(U, Σ_store[i-1], κ2, curr)
         b, B_prop = calc_bB(U, Σ_store[i-1], κ2, prop)
         post_prop = marginal_likelihood_outcome_pi(y_tilde, U, b, B_prop, ψ, prop) + g_L_prior(prop) + log(prop)
