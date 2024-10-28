@@ -1,6 +1,6 @@
 
 
-using Revise, Infiltrator, Distributions, LinearAlgebra, StatsPlots
+using Revise, Distributions, LinearAlgebra, StatsPlots
 using Pkg; Pkg.activate(".")
 using IVBMA
 
@@ -11,8 +11,8 @@ function gen_data(n::Integer = 100, p::Integer = 10, k::Integer = 10)
     W = V[:,(p+1):(p+k)]
 
     α = 0; γ = -1; τ = 1/2
-    δ_Z = [ones(Int(p/2)); zeros(Int(p/2))] .* (1/5)
-    δ_W = [ones(Int(k/2)); zeros(Int(k/2))] .* (2/5)
+    δ_Z = [ones(Int(p/2)); zeros(Int(p/2))] .* (4/5)
+    δ_W = [ones(Int(k/2)); zeros(Int(k/2))]
     β = [ones(Int(k/2)); zeros(Int(k/2))] .* 2
 
     u = rand(MvNormal([0, 0], [1 1/2; 1/2 1]), n)'
@@ -24,9 +24,8 @@ function gen_data(n::Integer = 100, p::Integer = 10, k::Integer = 10)
 end
 
 d = gen_data(50)
-res = ivbma(d.y, d.x, d.Z, d.W; iter = 100, burn = 0, pln = true)
+res = ivbma(d.y, d.x, d.Z, d.W; iter = 2000, burn = 1000, pln = true)
+res2c = ivbma(d.y, d.x, d.Z, d.W; iter = 2000, burn = 1000, pln = true, two_comp = true)
 
 plot(res)
-plot([map(x -> x[1,1], res.Σ) map(x -> x[1,2], res.Σ) map(x -> x[2,2], res.Σ)])
-
-[d.q d.x]
+plot(res2c)
