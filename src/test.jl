@@ -1,6 +1,6 @@
 
 
-using Revise, Infiltrator, Distributions, LinearAlgebra, StatsPlots
+using Revise, Distributions, LinearAlgebra, StatsPlots
 using Pkg; Pkg.activate(".")
 using IVBMA
 
