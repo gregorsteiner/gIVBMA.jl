@@ -52,7 +52,7 @@ function pln_gradient(y, x, q, Mean_y, Mean_q, Σ)
     ψ = calc_psi(Σ)
     cov_ratio = Σ[1,2]/Σ[2,2]
 
-    grad = x - exp.(q) - cov_ratio / ψ^2 * (y - (Mean_y + cov_ratio * (q - Mean_q))) - (q - Mean_q) / Σ[2, 2]
+    grad = x - exp.(q) + cov_ratio / ψ^2 * (y - (Mean_y + cov_ratio * (q - Mean_q))) - (q - Mean_q) / Σ[2, 2]
     return grad
 end
 
