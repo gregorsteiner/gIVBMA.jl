@@ -24,9 +24,9 @@ function gen_data(n::Integer = 100, p::Integer = 10, k::Integer = 10)
 end
 
 d = gen_data(50)
-res = ivbma(d.y, d.x, d.Z, d.W; iter = 100, burn = 0, pln = true)
+res = ivbma(d.y, d.x, d.Z, d.W; iter = 1000, burn = 0, pln = true)
+res2c = ivbma(d.y, d.x, d.Z, d.W; iter = 1000, burn = 0, pln = true, two_comp = true)
 
 plot(res)
-plot([map(x -> x[1,1], res.Σ) map(x -> x[1,2], res.Σ) map(x -> x[2,2], res.Σ)])
+plot(res2c)
 
-[d.q d.x]

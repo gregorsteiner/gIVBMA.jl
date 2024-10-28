@@ -48,6 +48,14 @@ end
 """
     Barker proposal, see Zens & Steel (2024) and Livingstone & Zanella (2022)
 """
+function pln_gradient(y, x, q, Mean_y, Mean_q, Σ)
+    ψ = calc_psi(Σ)
+    cov_ratio = Σ[1,2]/Σ[2,2]
+
+    grad = x - exp.(q) - cov_ratio / ψ^2 * (y - (Mean_y + cov_ratio * (q - Mean_q))) - (q - Mean_q) / Σ[2, 2]
+    return grad
+end
+
 function barker_proposal(x, q, GradCurr, PropVar)
     n = length(x)
     
@@ -56,6 +64,18 @@ function barker_proposal(x, q, GradCurr, PropVar)
 
     q_prop = q .+ Qi .* bi
     return q_prop
+end
+
+function pln_posterior_q(y, x, q, Mean_y, Mean_q, Σ)
+    ψ = calc_psi(Σ)
+    cov_ratio = Σ[1,2]/Σ[2,2]
+
+    post = [(
+            logpdf(Normal(Mean_y[j] + cov_ratio * (q - Mean_q)[j], ψ^2), y[j])
+            + logpdf(Poisson(exp(q[j])), x[j])
+            + logpdf(Normal(Mean_q[j], Σ[2,2]), q[j])
+        ) for j in eachindex(q)]
+    return post
 end
 
 function barker_correction_term(curr, prop, GradCurr, GradProp)
@@ -132,33 +152,21 @@ function ivbma_mcmc_pln(
 
     for i in 2:iter
 
-        # Step 0.0: Precomputations
+        # Step 0.0: Some precomputations
         ψ = calc_psi(Σ_store[i-1])
-        cov_ratio = (Σ_store[i-1][1,2] / Σ_store[i-1][2,2])
+        Mean_y = α_store[i-1] * ones(n) + [x W_L] * [τ_store[i-1]; β_store[i-1, :]]
+        Mean_q = γ_store[i-1] * ones(n) + W_M * δ_store[i-1, :]
 
         # Step 0.1: Draw latent Gaussian q
         q_curr = q_store[i-1,:]
-        GradCurr = (x - exp.(q_curr)) - η / Σ_store[i-1][2, 2]
+        GradCurr = pln_gradient(y, x, q_curr, Mean_y, Mean_q, Σ_store[i-1])
         q_prop = barker_proposal(x, q_curr, GradCurr, propVar_q)
-        η_prop = q_prop - (γ_store[i-1]*ones(n) + W_M * δ_store[i-1,:])
-        GradProp = (x - exp.(q_prop)) - η_prop / Σ_store[i-1][2, 2]
+        GradProp = pln_gradient(y, x, q_prop, Mean_y, Mean_q, Σ_store[i-1])
 
-        Mean_y = α_store[i-1] * ones(n) + [x W_L] * [τ_store[i-1]; β_store[i-1, :]]
-        Mean_prior = γ_store[i-1] * ones(n) + W_M * δ_store[i-1, :]
-
-        post_curr = [(
-            logpdf(Normal(Mean_y[j] + cov_ratio * η[j], ψ^2), y[j])
-            + logpdf(Poisson(exp(q_curr[j])), x[j])
-            + logpdf(Normal(Mean_prior[j], Σ_store[i-1][2,2]), q_curr[j])
-        ) for j in eachindex(q_curr)]
-
-        post_prop = [(
-            logpdf(Normal(Mean_y[j] + cov_ratio * η_prop[j], ψ^2), y[j])
-            + logpdf(Poisson(exp(q_prop[j])), x[j])
-            + logpdf(Normal(Mean_prior[j], Σ_store[i-1][2,2]), q_prop[j])
-        ) for j in eachindex(q_prop)]
-
+        post_curr = pln_posterior_q(y, x, q_curr, Mean_y, Mean_q, Σ_store[i-1])
+        post_prop = pln_posterior_q(y, x, q_prop, Mean_y, Mean_q, Σ_store[i-1])
         corr_term = barker_correction_term(q_curr, q_prop, GradCurr, GradProp)
+
         acc_prob = min.(ones(n), exp.(post_prop - post_curr + corr_term))
         acc = rand(n) .< acc_prob
 
@@ -170,8 +178,8 @@ function ivbma_mcmc_pln(
         propVar_q = sqrt.(exp.(l_propVar_q2))
 
         # Update 'residuals'
-        η[acc] = η_prop[acc]
-        y_tilde = y - cov_ratio * η
+        η = q_store[i,:] - Mean_q
+        y_tilde = y - Σ_store[i-1][1,2]/Σ_store[i-1][2,2] * η
 
         # Step 1.1: Draw g_l
         curr = g_L_store[i-1]
@@ -262,7 +270,6 @@ function ivbma_mcmc_pln(
         draw = post_sample_treatment(q_store[i,:], V, V_t_V, ϵ, Σ_store[i-1], g_M_store[i])
         γ_store[i] = draw.γ
         δ_store[i, M_incl[i,:]] = draw.δ
-
 
         # Step 3: Update covariance Matrix
         η = q_store[i,:] - (γ_store[i] * ones(n) + W_M * δ_store[i,:])
@@ -368,33 +375,21 @@ function ivbma_mcmc_pln_2c(
 
     for i in 2:iter
 
-        # Step 0.0: Precomputations
+        # Step 0.0: Some precomputations
         ψ = calc_psi(Σ_store[i-1])
-        cov_ratio = (Σ_store[i-1][1,2] / Σ_store[i-1][2,2])
+        Mean_y = α_store[i-1] * ones(n) + [x W_L] * [τ_store[i-1]; β_store[i-1, :]]
+        Mean_q = γ_store[i-1] * ones(n) + W_M * δ_store[i-1, :]
 
         # Step 0.1: Draw latent Gaussian q
         q_curr = q_store[i-1,:]
-        GradCurr = (x - exp.(q_curr)) - η / Σ_store[i-1][2, 2]
+        GradCurr = pln_gradient(y, x, q_curr, Mean_y, Mean_q, Σ_store[i-1])
         q_prop = barker_proposal(x, q_curr, GradCurr, propVar_q)
-        η_prop = q_prop - (γ_store[i-1]*ones(n) + W_M * δ_store[i-1,:])
-        GradProp = (x - exp.(q_prop)) - η_prop / Σ_store[i-1][2, 2]
+        GradProp = pln_gradient(y, x, q_prop, Mean_y, Mean_q, Σ_store[i-1])
 
-        Mean_y = α_store[i-1] * ones(n) + [x W_L] * [τ_store[i-1]; β_store[i-1, :]]
-        Mean_prior = γ_store[i-1] * ones(n) + W_M * δ_store[i-1, :]
-
-        post_curr = [(
-            logpdf(Normal(Mean_y[j] + cov_ratio * η[j], ψ^2), y[j])
-            + logpdf(Poisson(exp(q_curr[j])), x[j])
-            + logpdf(Normal(Mean_prior[j], Σ_store[i-1][2,2]), q_curr[j])
-        ) for j in eachindex(q_curr)]
-
-        post_prop = [(
-            logpdf(Normal(Mean_y[j] + cov_ratio * η_prop[j], ψ^2), y[j])
-            + logpdf(Poisson(exp(q_prop[j])), x[j])
-            + logpdf(Normal(Mean_prior[j], Σ_store[i-1][2,2]), q_prop[j])
-        ) for j in eachindex(q_prop)]
-
+        post_curr = pln_posterior_q(y, x, q_curr, Mean_y, Mean_q, Σ_store[i-1])
+        post_prop = pln_posterior_q(y, x, q_prop, Mean_y, Mean_q, Σ_store[i-1])
         corr_term = barker_correction_term(q_curr, q_prop, GradCurr, GradProp)
+
         acc_prob = min.(ones(n), exp.(post_prop - post_curr + corr_term))
         acc = rand(n) .< acc_prob
 
@@ -406,8 +401,8 @@ function ivbma_mcmc_pln_2c(
         propVar_q = sqrt.(exp.(l_propVar_q2))
 
         # Update 'residuals'
-        η[acc] = η_prop[acc]
-        y_tilde = y - cov_ratio * η
+        η = q_store[i,:] - Mean_q
+        y_tilde = y - Σ_store[i-1][1,2]/Σ_store[i-1][2,2] * η
 
         # Step 1.1: Draw g_l
         curr = g_L_store[i-1]
