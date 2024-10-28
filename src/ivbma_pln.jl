@@ -71,9 +71,9 @@ function pln_posterior_q(y, x, q, Mean_y, Mean_q, Σ)
     cov_ratio = Σ[1,2]/Σ[2,2]
 
     post = [(
-            logpdf(Normal(Mean_y[j] + cov_ratio * (q - Mean_q)[j], ψ^2), y[j])
+            logpdf(Normal(Mean_y[j] + cov_ratio * (q - Mean_q)[j], ψ), y[j])
             + logpdf(Poisson(exp(q[j])), x[j])
-            + logpdf(Normal(Mean_q[j], Σ[2,2]), q[j])
+            + logpdf(Normal(Mean_q[j], sqrt(Σ[2,2])), q[j])
         ) for j in eachindex(q)]
     return post
 end
