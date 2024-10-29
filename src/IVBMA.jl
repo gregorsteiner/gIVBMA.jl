@@ -29,7 +29,7 @@ include("ivbma_tools.jl")
     - `iter::Integer = 2000` the number of iterations of the Gibbs sampler
     - `burn::Integer = 1000` the number of initial iteratios to discard as burn-in (should be less than `iter`)
     - `two_comp::Bool = false` if true the two-componentn g-prior is used for the treatment parameters
-    - `pln::Bool = false` if true the treatment is assumed to follow a Poisson Log-Normal distribution
+    - `dist::String = "Gaussian"` the distribution of the treatment; currently "Gaussian" (default) and "PLN" (Poisson-Log-Normal) are implemented
     - `κ2` the prior variance on the intercept (only relevant for the Poisson Log-Normal model)
     - `ν_prior::Function = ν -> log(jp_ν(ν, size(Z, 2) + size(W, 2) + 3))` the hyperprior on the covariance degrees of freedom ν
     - `g_L_prior` the hyperprior on g for the outcome model (defaults to the hyper-g/n prior with a = 3)
@@ -47,7 +47,7 @@ function ivbma(
     iter::Integer = 2000,
     burn::Integer = 1000,
     two_comp::Bool = false,
-    pln::Bool = false,
+    dist::String = "Gaussian",
     κ2::Number = 100,
     ν_prior::Function = ν -> log(jp_ν(ν, size(Z, 2) + size(W, 2) + 3)),
     g_L_prior::Function = g -> log(hyper_g_n(g; a = 3, n = length(y))),
@@ -62,8 +62,8 @@ function ivbma(
         error("The treatment x is constant!")
     end
 
-    # centre regressors (don't centre treatment if the treatment model is a Poisson Log-normal)
-    if !pln
+    # centre regressors (only if the treatment is Gaussian)
+    if dist == "Gaussian"
         x = x .- mean(x)
     end
     Z = Z .- mean(Z; dims = 1)
@@ -77,14 +77,16 @@ function ivbma(
     end
 
     # Fit models
-    if !pln && !two_comp
+    if dist == "Gaussian" && !two_comp
         res = ivbma_mcmc(y, x, Z, W, iter, burn, ν_prior, g_L_prior, g_M_prior, m)
-    elseif !pln && two_comp
+    elseif dist == "Gaussian" && two_comp
         res = ivbma_mcmc_2c(y, x, Z, W, iter, burn, ν_prior, g_L_prior, g_l_prior, g_s_prior, m)
-    elseif pln && !two_comp
+    elseif dist == "PLN" && !two_comp
         res = ivbma_mcmc_pln(y, x, Z, W, iter, burn, κ2, ν_prior,  g_L_prior, g_M_prior, m)
-    elseif pln && two_comp
+    elseif dist == "PLN" && two_comp
         res = ivbma_mcmc_pln_2c(y, x, Z, W, iter, burn, κ2, ν_prior,  g_L_prior, g_l_prior, g_s_prior, m)
+    else
+        error("Unknown distribution: dist must be 'Gaussian' or 'PLN'")
     end
 
     return res
@@ -115,8 +117,8 @@ function ivbma(
         error("The two-component prior cannot be used without exogenous covariates.")
     end
 
-    # centre regressors (don't centre treatment if the treatment model is a Poisson Log-normal)
-    if !pln
+    # centre regressors (only centre treatment if Gaussian)
+    if dist == "Gaussian"
         x = x .- mean(x)
     end
     Z = Z .- mean(Z; dims = 1)
@@ -129,10 +131,12 @@ function ivbma(
     end
 
     # Fit models
-    if !pln
+    if dist == "Gaussian"
         res = ivbma_mcmc(y, x, Matrix{Float64}(undef, n, 0), Z, iter, burn, ν_prior, g_L_prior, g_M_prior, m)
-    elseif pln
+    elseif dist == "PLN"
         res = ivbma_mcmc_pln(y, x, Matrix{Float64}(undef, n, 0), Z, iter, burn, κ2, ν_prior,  g_L_prior, g_M_prior, m)
+    else
+        error("Unknown distribution: dist must be 'Gaussian' or 'PLN'")
     end
 
     return res
