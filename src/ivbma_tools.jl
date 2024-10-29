@@ -54,27 +54,42 @@ end
 """
     Compute the log predictive score on a holdout dataset.
 """
-function lpd(PostSample::PostSample, y::AbstractVector, x::AbstractVector, Z::AbstractMatrix, W::AbstractMatrix)
+function lps(PostSample::PostSample, y::AbstractVector, x::AbstractVector, Z::AbstractMatrix, W::AbstractMatrix)
     n = length(y)
+    pln = !isempty(PostSample.q) # Check if q matrix is empty to detect PLN => if true use q instead of x in η
+
     pd = Vector{Float64}(undef, length(PostSample.α))
     for i in eachindex(PostSample.α)
-        η = x - (ones(n) .* PostSample.γ[i] + [Z W] * PostSample.δ[i,:])
-        ψ = calc_psi(PostSample.Σ[i])
-        Mean = PostSample.α[i] .* ones(n) + PostSample.τ[i] .* x + W * PostSample.β[i,:] + (PostSample.Σ[i][1,2]/PostSample.Σ[i][2,2]) .* η
-        pd[i] = pdf(MvNormal(Mean, ψ^2 * I), y)
+        if !pln
+            η = x - (ones(n) .* PostSample.γ[i] + [Z W] * PostSample.δ[i,:])
+            ψ = calc_psi(PostSample.Σ[i])
+            Mean = PostSample.α[i] .* ones(n) + PostSample.τ[i] .* x + W * PostSample.β[i,:] + (PostSample.Σ[i][1,2]/PostSample.Σ[i][2,2]) .* η
+            pd[i] = pdf(MvNormal(Mean, ψ^2 * I), y)
+        elseif pln
+            Mean = PostSample.α[i] .* ones(n) + PostSample.τ[i] .* x + W * PostSample.β[i,:]
+            pd[i] = pdf(MvNormal(Mean, PostSample.Σ[i][1,1] * I), y)
+        end
     end
     
     return -log(mean(pd))
 end
 
-function lpd(PostSample::PostSample, y::AbstractVector, x::AbstractVector, Z::AbstractMatrix)
+function lps(PostSample::PostSample, y::AbstractVector, x::AbstractVector, Z::AbstractMatrix)
     n = length(y)
+    pln = !isempty(PostSample.q) # Check if q matrix is empty to detect PLN => if true use q instead of x in η
+    
     pd = Vector{Float64}(undef, length(PostSample.α))
     for i in eachindex(PostSample.α)
-        η = x - (ones(n) .* PostSample.γ[i] + Z * PostSample.δ[i,:])
-        ψ = calc_psi(PostSample.Σ[i])
-        Mean = PostSample.α[i] .* ones(n) + PostSample.τ[i] .* x + Z * PostSample.β[i,:] + (PostSample.Σ[i][1,2]/PostSample.Σ[i][2,2]) .* η
-        pd[i] = pdf(MvNormal(Mean, ψ^2 * I), y)
+        if !pln
+            η = x - (ones(n) .* PostSample.γ[i] + Z * PostSample.δ[i,:])
+            ψ = calc_psi(PostSample.Σ[i])
+            Mean = PostSample.α[i] .* ones(n) + PostSample.τ[i] .* x + Z * PostSample.β[i,:] + (PostSample.Σ[i][1,2]/PostSample.Σ[i][2,2]) .* η
+            pd[i] = pdf(MvNormal(Mean, ψ^2 * I), y)
+        elseif pln
+            Mean = PostSample.α[i] .* ones(n) + PostSample.τ[i] .* x + Z * PostSample.β[i,:]
+            pd[i] = pdf(MvNormal(Mean, PostSample.Σ[i][1,1] * I), y)
+        end
+        
     end
     
     return -log(mean(pd))
