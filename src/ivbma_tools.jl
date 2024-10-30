@@ -125,4 +125,56 @@ function StatsPlots.plot(ivbma::PostSample)
     return p
 end
 
+"""
+    Create a summary table describing the MCMC output.
+"""
+function describe(post::PostSample; ci = 0.95)
+    # Determine the CI bounds
+    lower_quantile = (1 - ci) / 2
+    upper_quantile = 1 - lower_quantile
+    ci_percentage = Int(ci * 100)  # Convert to percentage for the header
+
+    # Prepare storage for numerical data and parameter names
+    numerical_data = []
+    row_labels = []
+
+    # Calculate summaries for τ parameters (inclusion probability is always 1)
+    mean_val = mean(post.τ)
+    std_dev = std(post.τ)
+    lower_ci, upper_ci = quantile(post.τ, [lower_quantile, upper_quantile])
+    push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, 1.0])
+    push!(row_labels, "τ")
+
+    # Calculate summaries for β parameters
+    for j in 1:size(post.β, 2)
+        mean_val = mean(post.β[:, j])
+        std_dev = std(post.β[:, j])
+        lower_ci, upper_ci = quantile(post.β[:, j], [lower_quantile, upper_quantile])
+        inclusion_prob = mean(post.L[:, j]) # posterior inclusion probability for β
+        
+        push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, inclusion_prob])
+        push!(row_labels, "β[$j]")
+    end
+
+    # Calculate summaries for δ parameters
+    for j in 1:size(post.δ, 2)
+        mean_val = mean(post.δ[:, j])
+        std_dev = std(post.δ[:, j])
+        lower_ci, upper_ci = quantile(post.δ[:, j], [lower_quantile, upper_quantile])
+        inclusion_prob = mean(post.M[:, j]) # posterior inclusion probability for δ
+
+        push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, inclusion_prob])
+        push!(row_labels, "δ[$j]")
+    end
+
+    # Convert numerical_data to a matrix
+    numerical_matrix = hcat(numerical_data...)'
+
+    # Create a header with the dynamic credible interval percentage
+    header = ["Posterior Mean", "Posterior SD", "Lower $ci_percentage% CI", "Upper $ci_percentage% CI", "PIP"]
+    
+    # Display table with row labels
+    pretty_table(numerical_matrix; header = header, row_labels = row_labels, alignment = [:r, :r, :r, :r, :r])
+end
+
 
