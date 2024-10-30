@@ -179,10 +179,10 @@ function ivbma_mcmc(
 
         # Step 4: Update ν
         curr = ν_store[i-1]
-        prop = rand(Truncated(Normal(curr, propVar_ν), 1, Inf))
+        prop = rand(truncated(Normal(curr, propVar_ν), 1, Inf))
 
-        post_prop = logpdf(InverseWishart(prop, [1 0; 0 1]), Σ_store[i]) + ν_prior(prop) - logpdf(Truncated(Normal(curr, propVar_ν), 1, Inf), prop)
-        post_curr = logpdf(InverseWishart(curr, [1 0; 0 1]), Σ_store[i]) + ν_prior(curr) - logpdf(Truncated(Normal(prop, propVar_ν), 1, Inf), curr)
+        post_prop = logpdf(InverseWishart(prop, [1 0; 0 1]), Σ_store[i]) + ν_prior(prop) - logpdf(truncated(Normal(curr, propVar_ν), 1, Inf), prop)
+        post_curr = logpdf(InverseWishart(curr, [1 0; 0 1]), Σ_store[i]) + ν_prior(curr) - logpdf(truncated(Normal(prop, propVar_ν), 1, Inf), curr)
         acc = exp(post_prop - post_curr)
         
         if rand() < min(acc, 1)
