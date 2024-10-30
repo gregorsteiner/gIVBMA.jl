@@ -1,6 +1,6 @@
 module IVBMA
 
-using LinearAlgebra, Distributions, Statistics
+using LinearAlgebra, Distributions, Statistics, Random
 using InvertedIndices, SpecialFunctions
 using StatsPlots
 
@@ -15,9 +15,9 @@ include("ivbma_pln.jl")
 include("ivbma_tools.jl")
 
 """
-    Sample from the joint posterior function of all parameters and models.
+    Bayesian model averaging with instrumental variables: Sample from the joint posterior function of all parameters and models.
 
-    There are currently two ways to use this function: One can either provide a matrix of potential instruments Z and a matrix of potential covariates W.
+    There are currently two ways to use this function: One can either provide a matrix of potential instruments Z and a matrix of potential covariates W or just one of them.
     If both are given, Z can only be included in the treatment model, while W can be included in both models. If only one matrix of potential instruments and covariates
     is specified all of them can be included in both models. The two-component g-prior can only be used in the first case.
 
