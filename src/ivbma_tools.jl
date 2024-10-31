@@ -95,35 +95,6 @@ function lps(PostSample::PostSample, y::AbstractVector, x::AbstractVector, Z::Ab
     return -log(mean(pd))
 end
 
-"""
-    Plot method for IVBMA objects.
-    This function plots traceplots and posterior densities of τ and σ₁₂.
-"""
-
-function StatsPlots.plot(ivbma::PostSample)
-    tp_τ = plot(ivbma.τ, label = "", ylabel = "τ")
-    dp_τ = density(ivbma.τ, fill = true, label = "p(τ | D)")
-
-    σ12 = map(x -> x[1,2], ivbma.Σ)
-    tp_σ12 = plot(σ12, ylabel = "σ₁₂", label = "")
-    dp_σ12 = density(σ12, fill = true, label = "p(σ₁₂ | D)")
-
-    if size(ivbma.g, 2) == 2
-        lab = ["g_L" "g_M"]
-    else
-        lab = ["g_L" "g_l" "g_s"]
-    end
-    tp_g = plot(ivbma.g, yaxis = :log, ylabel = "g", label = lab)
-    model_size = plot([sum(ivbma.L, dims = 2) sum(ivbma.M, dims = 2)], ylabel = "Model Size", label = ["L" "M"])
-
-    p = plot(
-        tp_τ, dp_τ,
-        tp_σ12, dp_σ12,
-        tp_g, model_size,
-        layout = (3, 2)
-        )
-    return p
-end
 
 """
     Create a summary table describing the MCMC output.
