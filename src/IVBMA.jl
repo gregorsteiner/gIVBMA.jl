@@ -2,7 +2,7 @@ module IVBMA
 
 using LinearAlgebra, Distributions, Statistics, Random
 using InvertedIndices, SpecialFunctions
-using StatsPlots, PrettyTables
+using PrettyTables
 
 export ivbma, describe, lps, posterior_predictive, plot
 

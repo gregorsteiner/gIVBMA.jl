@@ -95,40 +95,14 @@ function lps(PostSample::PostSample, y::AbstractVector, x::AbstractVector, Z::Ab
     return -log(mean(pd))
 end
 
-"""
-    Plot method for IVBMA objects.
-    This function plots traceplots and posterior densities of τ and σ₁₂.
-"""
-
-function StatsPlots.plot(ivbma::PostSample)
-    tp_τ = plot(ivbma.τ, label = "", ylabel = "τ")
-    dp_τ = density(ivbma.τ, fill = true, label = "p(τ | D)")
-
-    σ12 = map(x -> x[1,2], ivbma.Σ)
-    tp_σ12 = plot(σ12, ylabel = "σ₁₂", label = "")
-    dp_σ12 = density(σ12, fill = true, label = "p(σ₁₂ | D)")
-
-    if size(ivbma.g, 2) == 2
-        lab = ["g_L" "g_M"]
-    else
-        lab = ["g_L" "g_l" "g_s"]
-    end
-    tp_g = plot(ivbma.g, yaxis = :log, ylabel = "g", label = lab)
-    model_size = plot([sum(ivbma.L, dims = 2) sum(ivbma.M, dims = 2)], ylabel = "Model Size", label = ["L" "M"])
-
-    p = plot(
-        tp_τ, dp_τ,
-        tp_σ12, dp_σ12,
-        tp_g, model_size,
-        layout = (3, 2)
-        )
-    return p
-end
 
 """
     Create a summary table describing the MCMC output.
+    
+    The `pars` argument selects the parameters that should be included in the table.
+    The `digits` argument determines the rounding and the `ci` can be used to change the nominal coverage of the credible intervals.
 """
-function describe(post::PostSample; ci = 0.95)
+function describe(post::PostSample; pars = ["τ", "δ", "Σ"], ci = 0.95, digits = 4)
     # Determine the CI bounds
     lower_quantile = (1 - ci) / 2
     upper_quantile = 1 - lower_quantile
@@ -139,36 +113,56 @@ function describe(post::PostSample; ci = 0.95)
     row_labels = []
 
     # Calculate summaries for τ parameters (inclusion probability is always 1)
-    mean_val = mean(post.τ)
-    std_dev = std(post.τ)
-    lower_ci, upper_ci = quantile(post.τ, [lower_quantile, upper_quantile])
-    push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, 1.0])
-    push!(row_labels, "τ")
-
-    # Calculate summaries for β parameters
-    for j in 1:size(post.β, 2)
-        mean_val = mean(post.β[:, j])
-        std_dev = std(post.β[:, j])
-        lower_ci, upper_ci = quantile(post.β[:, j], [lower_quantile, upper_quantile])
-        inclusion_prob = mean(post.L[:, j]) # posterior inclusion probability for β
-        
-        push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, inclusion_prob])
-        push!(row_labels, "β[$j]")
+    if "τ" ∈ pars
+        mean_val = mean(post.τ)
+        std_dev = std(post.τ)
+        lower_ci, upper_ci = quantile(post.τ, [lower_quantile, upper_quantile])
+        push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, 1.0])
+        push!(row_labels, "τ")
     end
 
-    # Calculate summaries for δ parameters
-    for j in 1:size(post.δ, 2)
-        mean_val = mean(post.δ[:, j])
-        std_dev = std(post.δ[:, j])
-        lower_ci, upper_ci = quantile(post.δ[:, j], [lower_quantile, upper_quantile])
-        inclusion_prob = mean(post.M[:, j]) # posterior inclusion probability for δ
-
-        push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, inclusion_prob])
-        push!(row_labels, "δ[$j]")
+    if "β" ∈ pars
+        for j in 1:size(post.β, 2)
+            mean_val = mean(post.β[:, j])
+            std_dev = std(post.β[:, j])
+            lower_ci, upper_ci = quantile(post.β[:, j], [lower_quantile, upper_quantile])
+            inclusion_prob = mean(post.L[:, j]) # posterior inclusion probability for β
+            
+            push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, inclusion_prob])
+            push!(row_labels, "β[$j]")
+        end
     end
 
+    if "δ" ∈ pars
+        for j in 1:size(post.δ, 2)
+            mean_val = mean(post.δ[:, j])
+            std_dev = std(post.δ[:, j])
+            lower_ci, upper_ci = quantile(post.δ[:, j], [lower_quantile, upper_quantile])
+            inclusion_prob = mean(post.M[:, j]) # posterior inclusion probability for δ
+
+            push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, inclusion_prob])
+            push!(row_labels, "δ[$j]")
+        end
+    end
+    
+    if "Σ" ∈ pars
+        for i in 1:2
+            for j in 1:2
+                if i <= j
+                    Σ_s = map(x -> x[i,j], post.Σ)
+                    mean_val = mean(Σ_s)
+                    std_dev = std(Σ_s)
+                    lower_ci, upper_ci = quantile(Σ_s, [lower_quantile, upper_quantile])
+
+                    push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, 1.0])
+                    push!(row_labels, "Σ[$i, $j]")
+                end
+            end
+        end
+    end
+    
     # Convert numerical_data to a matrix
-    numerical_matrix = hcat(numerical_data...)'
+    numerical_matrix = round.(hcat(numerical_data...)'; digits = digits)
 
     # Create a header with the dynamic credible interval percentage
     header = ["Posterior Mean", "Posterior SD", "Lower $ci_percentage% CI", "Upper $ci_percentage% CI", "PIP"]
