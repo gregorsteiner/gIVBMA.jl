@@ -98,8 +98,11 @@ end
 
 """
     Create a summary table describing the MCMC output.
+    
+    The `pars` argument selects the parameters that should be included in the table.
+    The `digits` argument determines the rounding and the `ci` can be used to change the nominal coverage of the credible intervals.
 """
-function describe(post::PostSample; pars = ["τ", "δ", "Σ"], ci = 0.95)
+function describe(post::PostSample; pars = ["τ", "δ", "Σ"], ci = 0.95, digits = 4)
     # Determine the CI bounds
     lower_quantile = (1 - ci) / 2
     upper_quantile = 1 - lower_quantile
@@ -159,7 +162,7 @@ function describe(post::PostSample; pars = ["τ", "δ", "Σ"], ci = 0.95)
     end
     
     # Convert numerical_data to a matrix
-    numerical_matrix = hcat(numerical_data...)'
+    numerical_matrix = round.(hcat(numerical_data...)'; digits = digits)
 
     # Create a header with the dynamic credible interval percentage
     header = ["Posterior Mean", "Posterior SD", "Lower $ci_percentage% CI", "Upper $ci_percentage% CI", "PIP"]
