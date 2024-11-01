@@ -99,7 +99,7 @@ end
 """
     Create a summary table describing the MCMC output.
 """
-function describe(post::PostSample; ci = 0.95)
+function describe(post::PostSample; pars = ["τ", "δ", "Σ"], ci = 0.95)
     # Determine the CI bounds
     lower_quantile = (1 - ci) / 2
     upper_quantile = 1 - lower_quantile
@@ -110,34 +110,54 @@ function describe(post::PostSample; ci = 0.95)
     row_labels = []
 
     # Calculate summaries for τ parameters (inclusion probability is always 1)
-    mean_val = mean(post.τ)
-    std_dev = std(post.τ)
-    lower_ci, upper_ci = quantile(post.τ, [lower_quantile, upper_quantile])
-    push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, 1.0])
-    push!(row_labels, "τ")
-
-    # Calculate summaries for β parameters
-    for j in 1:size(post.β, 2)
-        mean_val = mean(post.β[:, j])
-        std_dev = std(post.β[:, j])
-        lower_ci, upper_ci = quantile(post.β[:, j], [lower_quantile, upper_quantile])
-        inclusion_prob = mean(post.L[:, j]) # posterior inclusion probability for β
-        
-        push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, inclusion_prob])
-        push!(row_labels, "β[$j]")
+    if "τ" ∈ pars
+        mean_val = mean(post.τ)
+        std_dev = std(post.τ)
+        lower_ci, upper_ci = quantile(post.τ, [lower_quantile, upper_quantile])
+        push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, 1.0])
+        push!(row_labels, "τ")
     end
 
-    # Calculate summaries for δ parameters
-    for j in 1:size(post.δ, 2)
-        mean_val = mean(post.δ[:, j])
-        std_dev = std(post.δ[:, j])
-        lower_ci, upper_ci = quantile(post.δ[:, j], [lower_quantile, upper_quantile])
-        inclusion_prob = mean(post.M[:, j]) # posterior inclusion probability for δ
-
-        push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, inclusion_prob])
-        push!(row_labels, "δ[$j]")
+    if "β" ∈ pars
+        for j in 1:size(post.β, 2)
+            mean_val = mean(post.β[:, j])
+            std_dev = std(post.β[:, j])
+            lower_ci, upper_ci = quantile(post.β[:, j], [lower_quantile, upper_quantile])
+            inclusion_prob = mean(post.L[:, j]) # posterior inclusion probability for β
+            
+            push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, inclusion_prob])
+            push!(row_labels, "β[$j]")
+        end
     end
 
+    if "δ" ∈ pars
+        for j in 1:size(post.δ, 2)
+            mean_val = mean(post.δ[:, j])
+            std_dev = std(post.δ[:, j])
+            lower_ci, upper_ci = quantile(post.δ[:, j], [lower_quantile, upper_quantile])
+            inclusion_prob = mean(post.M[:, j]) # posterior inclusion probability for δ
+
+            push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, inclusion_prob])
+            push!(row_labels, "δ[$j]")
+        end
+    end
+    
+    if "Σ" ∈ pars
+        for i in 1:2
+            for j in 1:2
+                if i <= j
+                    Σ_s = map(x -> x[i,j], post.Σ)
+                    mean_val = mean(Σ_s)
+                    std_dev = std(Σ_s)
+                    lower_ci, upper_ci = quantile(Σ_s, [lower_quantile, upper_quantile])
+
+                    push!(numerical_data, [mean_val, std_dev, lower_ci, upper_ci, 1.0])
+                    push!(row_labels, "Σ[$i, $j]")
+                end
+            end
+        end
+    end
+    
     # Convert numerical_data to a matrix
     numerical_matrix = hcat(numerical_data...)'
 
