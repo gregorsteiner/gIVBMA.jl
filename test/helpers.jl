@@ -59,3 +59,23 @@ function gen_data_pln(n::Integer = 100, c_M::Number = 3/8, τ::Number = 0.1, p::
     return (y=y, x=x, q=q, Z=Z, W=W)
 end
 
+function gen_data_Kang2016(n::Integer = 200, τ::Number = 0.1, p::Integer = 10, s::Integer = 2, c::Number = 0.5)
+    Z = rand(MvNormal(zeros(p), I), n)'
+
+    α = γ = 1
+    δ = ones(p) .* 1/2 # chosen s.t. the first-staeg R^2 is approximately 0.2
+    β = [ones(s); zeros(p-s)]
+
+    u = rand(MvNormal([0, 0], [1 c; c 1]), n)'
+    x = γ .+ Z * δ + u[:,2]
+    y = α .+ τ * x .+ Z * β + u[:,1]
+
+    # centre all regressors
+    y = y .- mean(y)
+    x = x .- mean(x)
+    Z = Z .- mean(Z; dims = 1)
+
+    return (y=y, x=x, Z=Z)
+end
+
+
