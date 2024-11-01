@@ -99,7 +99,7 @@ function ivbma(
     iter::Integer = 2000,
     burn::Integer = 1000,
     two_comp::Bool = false,
-    pln::Bool = false,
+    dist::String = "Gaussian",
     κ2::Number = 100,
     ν_prior::Function = ν -> log(jp_ν(ν, size(Z, 2) + 3)),
     g_L_prior::Function = g -> log(hyper_g_n(g; a = 3, n = length(y))),
