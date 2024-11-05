@@ -103,7 +103,8 @@ function ivbma(
     ν_prior::Function = ν -> log(jp_ν(ν, size(Z, 2) + 3)),
     g_L_prior::Function = g -> log(hyper_g_n(g; a = 3, n = length(y))),
     g_M_prior::Function = g -> log(hyper_g_n(g; a = 3, n = length(y))),
-    m::Union{AbstractVector, Nothing} = nothing
+    m::Union{AbstractVector, Nothing} = nothing,
+    r_prior::Distribution = Exponential(1)
 )
 
     # Check that x is not constant
@@ -132,10 +133,8 @@ function ivbma(
     # Fit models
     if dist == "Gaussian"
         res = ivbma_mcmc(y, x, Matrix{Float64}(undef, n, 0), Z, iter, burn, ν_prior, g_L_prior, g_M_prior, m)
-    elseif dist == "PLN"
-        res = ivbma_mcmc_pln(y, x, Matrix{Float64}(undef, n, 0), Z, iter, burn, κ2, ν_prior,  g_L_prior, g_M_prior, m)
-    else
-        error("Unknown distribution: dist must be 'Gaussian' or 'PLN'")
+    elseif dist !== "Gaussian"
+        res = ivbma_mcmc_ng(y, x, Matrix{Float64}(undef, n, 0), Z, iter, burn, κ2, ν_prior,  g_L_prior, g_M_prior, m, dist, r_prior)
     end
 
     return res

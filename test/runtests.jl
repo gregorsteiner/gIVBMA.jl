@@ -33,8 +33,11 @@ end
     res = ivbma(data.y, data.x, data.Z, data.W; dist = "PLN")
     res_2c = ivbma(data.y, data.x, data.Z, data.W; dist = "PLN", two_comp = true)
 
+    res_inv = ivbma(data.y, data.x, [data.Z data.W]; dist = "PLN")
+
     @test isapprox(mean(res.τ), true_tau; atol=0.1)
     @test isapprox(mean(res_2c.τ), true_tau; atol=0.1)
+    @test isapprox(mean(res_inv.τ), true_tau; atol=0.1)
 end
 
 @testset "IVBMA-BL" begin
