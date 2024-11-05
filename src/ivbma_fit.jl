@@ -4,17 +4,18 @@
     A type to store the posterior sample in
 """
 struct PostSample
-    α::Vector{Float64}
-    τ::Vector{Float64}
-    β::Matrix{Float64}
-    γ::Vector{Float64}
-    δ::Matrix{Float64}
-    Σ::Array{Matrix{Float64}}
-    L::Matrix{Bool}
-    M::Matrix{Bool}
-    g::Matrix{Float64}
-    ν::Vector{Float64}
-    q::Matrix{Float64}
+    α::Vector{Float64} # Outcome intercept
+    τ::Vector{Float64} # Treatment effect of the endogenous variable
+    β::Matrix{Float64} # Outcome remaining slope coefficients
+    γ::Vector{Float64} # Treatment intercept
+    δ::Matrix{Float64} # Treatment slope coefficients
+    Σ::Array{Matrix{Float64}} # Residual covariance matrix
+    L::Matrix{Bool} # Outcome models
+    M::Matrix{Bool} # Treatment models
+    g::Matrix{Float64} # matrix of g
+    ν::Vector{Float64} # prior degrees of freedome of Σ
+    q::Matrix{Float64} # latent Gaussians (only relevant if the treatment is not Gaussian, otherwise empty)
+    r::Vector{Float64} # latent treatment dispersion parameters (only relevant if the treatment is not Gaussian, otherwise empty)
 end
 
 """
@@ -206,7 +207,8 @@ function ivbma_mcmc(
         M_incl[(burn+1):end,:],
         [g_L_store[(burn+1):end] g_M_store[(burn+1):end]],
         ν_store[(burn+1):end],
-        Matrix(undef, 0, 0)
+        Matrix(undef, 0, 0),
+        Vector(undef, 0)
     )
 end
 

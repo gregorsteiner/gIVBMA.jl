@@ -46,13 +46,23 @@ function calc_bB(U, Σ, κ2, g)
 end
 
 """
+    Logistic function 
+"""
+logit(x) = exp(x) / (1+exp(x))
+
+"""
     Barker proposal, see Zens & Steel (2024) and Livingstone & Zanella (2022)
 """
-function pln_gradient(y, x, q, Mean_y, Mean_q, Σ)
+function gradient(y, x, q, Mean_y, Mean_q, Σ, dist, r)
     ψ = calc_psi(Σ)
     cov_ratio = Σ[1,2]/Σ[2,2]
 
-    grad = x - exp.(q) + cov_ratio / ψ^2 * (y - (Mean_y + cov_ratio * (q - Mean_q))) - (q - Mean_q) / Σ[2, 2]
+    grad = cov_ratio / ψ^2 * (y - (Mean_y + cov_ratio * (q - Mean_q))) - (q - Mean_q) / Σ[2, 2]
+    if dist == "PLN"
+        grad .+= x - exp.(q)
+    elseif dist == "BL"
+        grad .+= r * exp.(q) ./ (1 .+ exp.(q)).^2 .* log.(x ./ (1 .- x))
+    end
     return grad
 end
 
@@ -66,15 +76,23 @@ function barker_proposal(x, q, GradCurr, PropVar)
     return q_prop
 end
 
-function pln_posterior_q(y, x, q, Mean_y, Mean_q, Σ)
+function posterior_q(y, x, q, Mean_y, Mean_q, Σ, dist, r)
     ψ = calc_psi(Σ)
     cov_ratio = Σ[1,2]/Σ[2,2]
 
     post = [(
             logpdf(Normal(Mean_y[j] + cov_ratio * (q - Mean_q)[j], ψ), y[j])
-            + logpdf(Poisson(exp(q[j])), x[j])
             + logpdf(Normal(Mean_q[j], sqrt(Σ[2,2])), q[j])
-        ) for j in eachindex(q)]
+        ) for j in eachindex(x)]
+    if dist == "PLN"
+        post .+= [logpdf(Poisson(exp(q[j])), x[j]) for j in eachindex(x)]
+    elseif dist == "BL"
+        μ = logit.(q)
+        B_α = μ * r
+        B_β = r * (1 .- μ)
+        post .+= [logpdf(Beta(B_α[j], B_β[j]), x[j]) for j in eachindex(x)]
+    end
+    
     return post
 end
 
@@ -88,11 +106,15 @@ function barker_correction_term(curr, prop, GradCurr, GradProp)
     return result
 end
 
+function post_r(r, x, q, r_prior::Distribution)
+    post = sum([logpdf(Beta(logit(q[j]), r), x[j]) for j in eachindex(x)]) + logpdf(r_prior, r)
+    return post
+end
 
 """
-    Fit Gaussian-PLN (Gaussian outcome, Poisson treatment) ivbma models with a regular g-prior (+proper prior on the intercept) and hyperpriors on g and ν.
+    Fit IVBMA with non-Gaussian treatment (PLN: Poisson-Log-Logistic or BL: Beta-Logistic) with a regular g-prior (+proper prior on the intercept) and hyperpriors on g and ν.
 """
-function ivbma_mcmc_pln(
+function ivbma_mcmc_ng(
     y::AbstractVector{<:Real},
     x::AbstractVector{<:Real},
     Z::AbstractMatrix{<:Real},
@@ -103,7 +125,9 @@ function ivbma_mcmc_pln(
     ν_prior::Function,
     g_L_prior::Function,
     g_M_prior::Function,
-    m::AbstractVector
+    m::AbstractVector,
+    dist::String,
+    r_prior::Distribution
 )
 
     n = size(W, 1)
@@ -111,9 +135,6 @@ function ivbma_mcmc_pln(
     p = size(Z, 2)
  
     m_o = m[1]; m_t = m[2]
-
-    q_store = Matrix{Float64}(undef, iter, n)
-    q_store[1,:] = rand(Normal(0, 1), n)
 
     α_store = zeros(iter)
     τ_store = zeros(iter)
@@ -131,7 +152,12 @@ function ivbma_mcmc_pln(
     ν_store = zeros(iter); ν_store[1] = 10
     propVar_ν = 1/2; acc_ν = 0
 
+    q_store = Matrix{Float64}(undef, iter, n)
+    q_store[1,:] = rand(Normal(0, 1), n)
     propVar_q = ones(n) * 0.1
+
+    r_store = zeros(iter); r_store[1] = 1
+    propVar_r = 1/2; acc_r = 0
 
     W_L = W
     W_M = [Z W]
@@ -159,12 +185,12 @@ function ivbma_mcmc_pln(
 
         # Step 0.1: Draw latent Gaussian q
         q_curr = q_store[i-1,:]
-        GradCurr = pln_gradient(y, x, q_curr, Mean_y, Mean_q, Σ_store[i-1])
+        GradCurr = gradient(y, x, q_curr, Mean_y, Mean_q, Σ_store[i-1], dist, r_store[i-1])
         q_prop = barker_proposal(x, q_curr, GradCurr, propVar_q)
-        GradProp = pln_gradient(y, x, q_prop, Mean_y, Mean_q, Σ_store[i-1])
+        GradProp = gradient(y, x, q_prop, Mean_y, Mean_q, Σ_store[i-1], dist, r_store[i-1])
 
-        post_curr = pln_posterior_q(y, x, q_curr, Mean_y, Mean_q, Σ_store[i-1])
-        post_prop = pln_posterior_q(y, x, q_prop, Mean_y, Mean_q, Σ_store[i-1])
+        post_curr = posterior_q(y, x, q_curr, Mean_y, Mean_q, Σ_store[i-1], dist, r_store[i-1])
+        post_prop = posterior_q(y, x, q_prop, Mean_y, Mean_q, Σ_store[i-1], dist, r_store[i-1])
         corr_term = barker_correction_term(q_curr, q_prop, GradCurr, GradProp)
 
         acc_prob = min.(ones(n), exp.(post_prop - post_curr + corr_term))
@@ -180,6 +206,23 @@ function ivbma_mcmc_pln(
         # Update 'residuals'
         η = q_store[i,:] - Mean_q
         y_tilde = y - Σ_store[i-1][1,2]/Σ_store[i-1][2,2] * η
+
+        # Step 0.2: Update r (only necessary for Beta-Logistic)
+        if dist == "BL"
+            curr = r_store[i-1]
+            prop = rand(LogNormal(log(curr), propVar_r))
+            post_prop = post_r(prop, x, q_store[i,:], r_prior) + log(prop)
+            post_curr = post_r(curr, x, q_store[i,:], r_prior) + log(curr)
+            acc = exp(post_prop - post_curr)
+            if rand() < min(acc, 1)
+                r_store[i] = prop
+                acc_r += 1
+            else
+                r_store[i] = curr
+            end
+    
+            propVar_r = adjust_variance(propVar_r, acc_r, i)
+        end
 
         # Step 1.1: Draw g_l
         curr = g_L_store[i-1]
@@ -304,7 +347,8 @@ function ivbma_mcmc_pln(
         M_incl[(burn+1):end,:],
         [g_L_store[(burn+1):end] g_M_store[(burn+1):end]],
         ν_store[(burn+1):end],
-        q_store[(burn+1):end,:]
+        q_store[(burn+1):end,:],
+        r_store[(burn+1):end]
     )
 end
 
@@ -312,7 +356,7 @@ end
 """
     Fit Gaussian-PLN (Gaussian outcome, Poisson treatment) ivbma models with a regular g-prior (+proper prior on the intercept) and hyperpriors on g and ν.
 """
-function ivbma_mcmc_pln_2c(
+function ivbma_mcmc_ng_2c(
     y::AbstractVector{<:Real},
     x::AbstractVector{<:Real},
     Z::AbstractMatrix{<:Real},
@@ -324,7 +368,9 @@ function ivbma_mcmc_pln_2c(
     g_L_prior::Function,
     g_l_prior::Function,
     g_s_prior::Function,
-    m::AbstractVector
+    m::AbstractVector,
+    dist::String,
+    r_prior::Distribution
 )
 
     n = size(W, 1)
@@ -332,9 +378,6 @@ function ivbma_mcmc_pln_2c(
     p = size(Z, 2)
  
     m_o = m[1]; m_t = m[2]
-
-    q_store = Matrix{Float64}(undef, iter, n)
-    q_store[1,:] = rand(Normal(0, 1), n)
 
     α_store = zeros(iter)
     τ_store = zeros(iter)
@@ -354,7 +397,12 @@ function ivbma_mcmc_pln_2c(
     ν_store = zeros(iter); ν_store[1] = 10
     propVar_ν = 1/2; acc_ν = 0
 
+    q_store = Matrix{Float64}(undef, iter, n)
+    q_store[1,:] = rand(Normal(0, 1), n)
     propVar_q = ones(n) * 0.1
+    
+    r_store = zeros(iter); r_store[1] = 1
+    propVar_r = 1/2; acc_r = 0
 
     W_L = W
     W_M = [Z W]
@@ -382,12 +430,12 @@ function ivbma_mcmc_pln_2c(
 
         # Step 0.1: Draw latent Gaussian q
         q_curr = q_store[i-1,:]
-        GradCurr = pln_gradient(y, x, q_curr, Mean_y, Mean_q, Σ_store[i-1])
+        GradCurr = gradient(y, x, q_curr, Mean_y, Mean_q, Σ_store[i-1], dist, r_store[i-1])
         q_prop = barker_proposal(x, q_curr, GradCurr, propVar_q)
-        GradProp = pln_gradient(y, x, q_prop, Mean_y, Mean_q, Σ_store[i-1])
+        GradProp = gradient(y, x, q_prop, Mean_y, Mean_q, Σ_store[i-1], dist, r_store[i-1])
 
-        post_curr = pln_posterior_q(y, x, q_curr, Mean_y, Mean_q, Σ_store[i-1])
-        post_prop = pln_posterior_q(y, x, q_prop, Mean_y, Mean_q, Σ_store[i-1])
+        post_curr = posterior_q(y, x, q_curr, Mean_y, Mean_q, Σ_store[i-1], dist, r_store[i-1])
+        post_prop = posterior_q(y, x, q_prop, Mean_y, Mean_q, Σ_store[i-1], dist, r_store[i-1])
         corr_term = barker_correction_term(q_curr, q_prop, GradCurr, GradProp)
 
         acc_prob = min.(ones(n), exp.(post_prop - post_curr + corr_term))
@@ -403,6 +451,23 @@ function ivbma_mcmc_pln_2c(
         # Update 'residuals'
         η = q_store[i,:] - Mean_q
         y_tilde = y - Σ_store[i-1][1,2]/Σ_store[i-1][2,2] * η
+
+        # Step 0.2: Update r (only necessary for Beta-Logistic)
+        if dist == "BL"
+            curr = r_store[i-1]
+            prop = rand(LogNormal(log(curr), propVar_r))
+            post_prop = post_r(prop, x, q_store[i,:], r_prior) + log(prop)
+            post_curr = post_r(curr, x, q_store[i,:], r_prior) + log(curr)
+            acc = exp(post_prop - post_curr)
+            if rand() < min(acc, 1)
+                r_store[i] = prop
+                acc_r += 1
+            else
+                r_store[i] = curr
+            end
+    
+            propVar_r = adjust_variance(propVar_r, acc_r, i)
+        end
 
         # Step 1.1: Draw g_l
         curr = g_L_store[i-1]
@@ -545,6 +610,7 @@ function ivbma_mcmc_pln_2c(
         M_incl[(burn+1):end,:],
         [g_L_store[(burn+1):end] g_l_store[(burn+1):end] g_s_store[(burn+1):end]],
         ν_store[(burn+1):end],
-        q_store[(burn+1):end,:]
+        q_store[(burn+1):end,:],
+        r_store[(burn+1):end]
     )
 end
