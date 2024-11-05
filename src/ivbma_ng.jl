@@ -133,6 +133,11 @@ function ivbma_mcmc_ng(
     n = size(W, 1)
     k = size(W, 2)
     p = size(Z, 2)
+
+    if dist == "BL" # Slightly perturb observations that are exaclty 1 or 0 (otherwise the gradients are not finite)
+        x[x .== zero(x)] = x[x .== zero(x)] .+ 1e-16
+        x[x .== 1] = x[x .== 1] .- 1e-16
+    end
  
     m_o = m[1]; m_t = m[2]
 
@@ -376,6 +381,11 @@ function ivbma_mcmc_ng_2c(
     n = size(W, 1)
     k = size(W, 2)
     p = size(Z, 2)
+
+    if dist == "BL" # Slightly perturb observations that are exaclty 1 or 0 (otherwise the gradients are not finite)
+        x[x .== zero(x)] = x[x .== zero(x)] .+ 1e-16
+        x[x .== 1] = x[x .== 1] .- 1e-16
+    end
  
     m_o = m[1]; m_t = m[2]
 
