@@ -11,7 +11,7 @@ include("ivbma_priors.jl")
 include("posterior_ml.jl")
 include("ivbma_fit.jl")
 include("ivbma_2c.jl")
-include("ivbma_pln.jl")
+include("ivbma_ng.jl")
 include("ivbma_tools.jl")
 
 """
@@ -54,7 +54,8 @@ function ivbma(
     g_M_prior::Function = g -> log(hyper_g_n(g; a = 3, n = length(y))),
     g_l_prior::Function = g -> log(hyper_g_n(g; a = 3, n = length(y))),
     g_s_prior::Function = g -> log(hyper_g_n(g; a = 4, n = length(y))),
-    m::Union{AbstractVector, Nothing} = nothing
+    m::Union{AbstractVector, Nothing} = nothing,
+    r_prior::Distribution = Exponential(1)
 )
 
     # Check that x is not constant
@@ -81,12 +82,10 @@ function ivbma(
         res = ivbma_mcmc(y, x, Z, W, iter, burn, ν_prior, g_L_prior, g_M_prior, m)
     elseif dist == "Gaussian" && two_comp
         res = ivbma_mcmc_2c(y, x, Z, W, iter, burn, ν_prior, g_L_prior, g_l_prior, g_s_prior, m)
-    elseif dist == "PLN" && !two_comp
-        res = ivbma_mcmc_pln(y, x, Z, W, iter, burn, κ2, ν_prior,  g_L_prior, g_M_prior, m)
-    elseif dist == "PLN" && two_comp
-        res = ivbma_mcmc_pln_2c(y, x, Z, W, iter, burn, κ2, ν_prior,  g_L_prior, g_l_prior, g_s_prior, m)
-    else
-        error("Unknown distribution: dist must be 'Gaussian' or 'PLN'")
+    elseif dist !== "Gaussian" && !two_comp
+        res = ivbma_mcmc_ng(y, x, Z, W, iter, burn, κ2, ν_prior,  g_L_prior, g_M_prior, m, dist, r_prior)
+    elseif dist !== "Gaussian" && two_comp
+        res = ivbma_mcmc_ng_2c(y, x, Z, W, iter, burn, κ2, ν_prior,  g_L_prior, g_l_prior, g_s_prior, m, dist, r_prior)
     end
 
     return res

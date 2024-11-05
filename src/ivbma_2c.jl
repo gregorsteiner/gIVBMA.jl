@@ -198,6 +198,7 @@ function ivbma_mcmc_2c(
         M_incl[(burn+1):end,:],
         [g_L_store[(burn+1):end] g_l_store[(burn+1):end] g_s_store[(burn+1):end]],
         ν_store[(burn+1):end],
-        Matrix(undef, 0, 0)
+        Matrix(undef, 0, 0),
+        Vector(undef, 0)
     )
 end
