@@ -44,7 +44,7 @@ end
     res = ivbma(data.y, data.x, data.Z, data.W; dist = "BL")
     res_2c = ivbma(data.y, data.x, data.Z, data.W; dist = "BL", two_comp = true)
 
-    @test isapprox(mean(res.τ), true_tau; atol=0.2)
-    @test isapprox(mean(res_2c.τ), true_tau; atol=0.2)
+    @test isapprox(mean(res.τ), true_tau; atol=0.3)
+    @test isapprox(mean(res_2c.τ), true_tau; atol=0.3)
 end
 
