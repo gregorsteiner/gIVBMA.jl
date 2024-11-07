@@ -2,9 +2,9 @@ module IVBMA
 
 using LinearAlgebra, Distributions, Statistics, Random
 using InvertedIndices, SpecialFunctions
-using PrettyTables
+using PrettyTables, Infiltrator
 
-export ivbma, describe, lps, posterior_predictive, plot
+export ivbma, describe, lps, posterior_predictive, plot, ivbma_mv_mcmc
 
 
 include("ivbma_priors.jl")
@@ -13,6 +13,7 @@ include("ivbma_fit.jl")
 include("ivbma_2c.jl")
 include("ivbma_ng.jl")
 include("ivbma_tools.jl")
+include("ivbma_mv.jl")
 
 """
     Bayesian model averaging with instrumental variables: Sample from the joint posterior function of all parameters and models.
