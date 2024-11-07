@@ -54,7 +54,7 @@ function ivbma_mcmc(y, X, Z, W, iter, burn, ν, m, g_prior)
 
     g_L, g_M = (max(n, k^2), max(n, (k+p)^2))
     if random_g
-        proposal_variance_g_L, proposal_variance_g_M = (1, 1)
+        proposal_variance_g_L, proposal_variance_g_M = (1/2, 1/2)
         acc_g_L, acc_g_M = (0, 0)
     end
 
@@ -104,7 +104,7 @@ function ivbma_mcmc(y, X, Z, W, iter, burn, ν, m, g_prior)
 
         # Update g_L
         if random_g
-            prop = exp(rand(truncated(Normal(log(g_L), sqrt(proposal_variance_g_L)), 0, Inf)))
+            prop = exp(rand(Normal(log(g_L), sqrt(proposal_variance_g_L))))
             A_prop = calc_A(U, prop)
 
             acc = min(1, exp(
@@ -141,7 +141,7 @@ function ivbma_mcmc(y, X, Z, W, iter, burn, ν, m, g_prior)
 
         # Update g_M
         if random_g
-            prop = exp(rand(truncated(Normal(log(g_M), sqrt(proposal_variance_g_M)), 0, Inf)))
+            prop = exp(rand(Normal(log(g_M), sqrt(proposal_variance_g_M))))
             acc = min(1, exp(
                 marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, prop) + hyper_g_n(prop; a = 3, n = n) + log(prop) -
                 (marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g_M) + hyper_g_n(g_M; a = 3, n = n) + log(g_M))
