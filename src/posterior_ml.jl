@@ -14,7 +14,9 @@ end
 function calc_A(U, g)
     ι = ones(size(U, 1))
     P_ι = ι * inv(ι'ι) * ι'
-    return inv(U' * (g/(g+1) * I - P_ι) * U)
+    
+    A = inv(U' * ((g+1)/g * I - P_ι) * U)
+    return A
 end
 
 calc_B_Σ(σ_y_x, Σ_yx, Σ_xx) = I + Σ_yx * Σ_yx' * inv(Σ_xx) / σ_y_x

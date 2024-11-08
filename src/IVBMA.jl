@@ -2,7 +2,7 @@ module IVBMA
 
 using LinearAlgebra, Distributions, Statistics, Random
 using InvertedIndices, SpecialFunctions
-using PrettyTables
+using PrettyTables, Infiltrator
 
 export ivbma
 

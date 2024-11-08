@@ -12,19 +12,12 @@ function mc3_proposal(curr)
 end
 
 """
-    This is a helper function to adaptively tune the proposal variances of the MH steps.
+    Adapt the proposal scale based on a desired acceptance probability.
 """
-function adjust_variance(propVar, n_acc, iter)
-    acc_rate = n_acc / iter
-    if acc_rate < 0.2
-        return propVar * 0.99
-    elseif acc_rate > 0.4
-        return propVar * 1.01
-    end
-    return propVar
+function adjust_variance(curr_variance, acc_prob, desired_acc_prob, iter)
+    log_variance = log(curr_variance) + iter^(-0.6) * (acc_prob - desired_acc_prob)
+    return exp(log_variance)
 end
-
-
 
 """
     The main MCMC function that returns posterior samples.
@@ -54,8 +47,7 @@ function ivbma_mcmc(y, X, Z, W, iter, burn, ν, m, g_prior)
 
     g_L, g_M = (max(n, k^2), max(n, (k+p)^2))
     if random_g
-        proposal_variance_g_L, proposal_variance_g_M = (1/2, 1/2)
-        acc_g_L, acc_g_M = (0, 0)
+        proposal_variance_g_L, proposal_variance_g_M = (0.01, 0.01)
     end
 
     # storage objects
@@ -104,18 +96,17 @@ function ivbma_mcmc(y, X, Z, W, iter, burn, ν, m, g_prior)
 
         # Update g_L
         if random_g
-            prop = exp(rand(Normal(log(g_L), sqrt(proposal_variance_g_L))))
+            prop = rand(LogNormal(log(g_L), sqrt(proposal_variance_g_L)))
             A_prop = calc_A(U, prop)
 
             acc = min(1, exp(
-                marginal_likelihood_outcome(y_tilde, A_prop, U, σ_y_x, prop) + hyper_g_n(prop; a = 3, n = n) + log(prop) - 
-                (marginal_likelihood_outcome(y_tilde, A, U, σ_y_x, g_L) + hyper_g_n(g_L; a = 3, n = n) + log(g_L))
+                marginal_likelihood_outcome(y_tilde, A_prop, U, σ_y_x, prop) + log(hyper_g_n(prop; a = 3, n = n)) + log(prop) - 
+                (marginal_likelihood_outcome(y_tilde, A, U, σ_y_x, g_L) + log(hyper_g_n(g_L; a = 3, n = n)) + log(g_L))
             ))
             if rand() < acc
                 g_L, A = (prop, A_prop)
-                acc_g_L += 1
             end
-            proposal_variance_g_L = adjust_variance(proposal_variance_g_L, acc_g_L, i)
+            proposal_variance_g_L = adjust_variance(proposal_variance_g_L, acc, 0.234, i)
         end
 
         # Update parameters
@@ -141,16 +132,15 @@ function ivbma_mcmc(y, X, Z, W, iter, burn, ν, m, g_prior)
 
         # Update g_M
         if random_g
-            prop = exp(rand(Normal(log(g_M), sqrt(proposal_variance_g_M))))
+            prop = rand(LogNormal(log(g_M), sqrt(proposal_variance_g_M)))
             acc = min(1, exp(
-                marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, prop) + hyper_g_n(prop; a = 3, n = n) + log(prop) -
-                (marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g_M) + hyper_g_n(g_M; a = 3, n = n) + log(g_M))
+                marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, prop) + log(hyper_g_n(prop; a = 3, n = n)) + log(prop) -
+                (marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g_M) + log(hyper_g_n(g_M; a = 3, n = n)) + log(g_M))
             ))
             if rand() < acc
                 g_M = prop
-                acc_g_M += 1
             end
-            proposal_variance_g_M = adjust_variance(proposal_variance_g_M, acc_g_M, i)
+            proposal_variance_g_M = adjust_variance(proposal_variance_g_M, acc, 0.234, i)
         end
 
         # Update parameters
