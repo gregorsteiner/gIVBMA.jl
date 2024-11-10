@@ -64,3 +64,19 @@ function post_r(r, x, q, r_prior::Distribution)
     post = sum([logpdf(Beta(logit(q[j]), r), x[j]) for j in eachindex(x)]) + logpdf(r_prior, r)
     return post
 end
+
+
+# helper function to generate the set values (only relevant for BL if we have 0s or 1s)
+function set_values_0_1(x, q, r)
+    μ = logit.(q)
+    B_α = μ * r
+    B_β = r * (1 .- μ)
+    for i in eachindex(x)
+        if x[i] <= 0.001
+            x[i] = rand(truncated(Beta(B_α[i], B_β[i]), 1e-12, 0.001))
+        elseif x[i] >= 0.999
+            x[i] = rand(truncated(Beta(B_α[i], B_β[i]), 0.999, 1 - 1e-12))
+        end
+    end
+    return x
+end

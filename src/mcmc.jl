@@ -97,10 +97,7 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
 
                 # Use set values for 0 and 1 observations in the Beta case
                 if d == "BL"
-                    bool_0 = X[:, idx_d] .< 0.001
-                    X[bool_0, idx_d] = rand(Uniform(0, 0.001), sum(bool_0))
-                    bool_1 = X[:, idx_d] .> 0.999
-                    X[bool_1, idx_d] = rand(Uniform(0.999, 1), sum(bool_1))
+                    X[:, idx_d] = set_values_0_1(X[:, idx_d], Q[:, idx_d], r[idx_d])
                 end
 
                 q_curr = Q[:, idx_d]
