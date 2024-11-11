@@ -63,7 +63,7 @@ function marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g)
     n, k_M = size(V)
     P_V = V * inv(V'V) * V'
 
-    ml = -(k_M/2) * log(g+1) - (n/2) * det(B) - (1/2) * tr(inv(Σ_xx) * B * (-X_tilde' * P_V * X_tilde))
+    ml = -(k_M/2) * log(g+1) - (n/2) * det(B) - (1/2) * tr(inv(Σ_xx) * B * (g / (g+1)) * (-X_tilde' * P_V * X_tilde))
     return ml
 end
 
