@@ -50,7 +50,7 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
     Γ, Δ = (zeros(l), zeros(k+p, l)[M, :])
     Σ = Diagonal(ones(l+1))
     
-    g_L, g_M = (max(n, k^2), max(n, (k+p)^2))
+    g_L, g_M = (max(n, k^2), l * max(n, (k+p)^2))
     if random_g
         proposal_variance_g_L, proposal_variance_g_M = (0.01, 0.01)
     end

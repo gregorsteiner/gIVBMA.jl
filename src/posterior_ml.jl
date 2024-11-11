@@ -51,19 +51,24 @@ function post_sample_treatment(X_tilde, B, V, Σ_xx, g)
     n = size(X_tilde, 1)
     V_t_V_inv = inv(V'V)
     ι = ones(n)
-    sf = g / (g + 1) # shrinkage factor
 
     Γ = rand(MvNormal((ι' * X_tilde / n)[1,:], Symmetric((1/n) * inv(B) * Σ_xx)))
-    Δ = rand(MatrixNormal(sf * V_t_V_inv * V'X_tilde, Symmetric(sf * V_t_V_inv), Symmetric(inv(B) * Σ_xx)))
+    Δ = rand(MatrixNormal( V_t_V_inv * V'X_tilde * inv(I + 1/g * inv(B))', Symmetric(V_t_V_inv), Symmetric(inv(B + 1/g * I))))
     
     return (Γ, Δ)
 end
 
 function marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g)
     n, k_M = size(V)
+    l = size(X_tilde, 2)
     P_V = V * inv(V'V) * V'
+    P_ι = ones(n) * ones(n)' / n
 
-    ml = -(k_M/2) * log(g+1) - (n/2) * det(B) - (1/2) * tr(inv(Σ_xx) * B * (g / (g+1)) * (-X_tilde' * P_V * X_tilde))
+    C = inv(I + 1/g * inv(B))
+    D = (B + 1/g * I)
+    S = - inv(Σ_xx) * D * C * X_tilde' * P_V * X_tilde * C'
+
+    ml = -(l*k_M/2) * log(g) - (n/2) * log(det(B + 1/g * I)) - (1/2) * tr(S)
     return ml
 end
 
