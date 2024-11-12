@@ -40,7 +40,7 @@ function ivbma(
     iter::Integer = 2000,
     burn::Integer = 1000,
     dist::Vector{String} = repeat(["Gaussian"], size(X, 2)),
-    ν::Number = size(X, 2) + 2,
+    ν::Union{Nothing, Number} = nothing,
     g_prior::String = "BRIC",
     m::Union{AbstractVector, Nothing} = nothing,
     r_prior::Distribution = Exponential(1)
@@ -73,7 +73,7 @@ function ivbma(
     iter::Integer = 2000,
     burn::Integer = 1000,
     dist::Vector{String} = repeat(["Gaussian"], size(X, 2)),
-    ν::Number = size(X, 2) + 2,
+    ν::Union{Nothing, Number} = nothing,
     m::Union{AbstractVector, Nothing} = nothing,
     g_prior::String = "BRIC",
     r_prior::Distribution = Exponential(1)
