@@ -138,7 +138,7 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
         # Step 1: Outcome model
         # Update model
         prop = mc3_proposal(L)
-        U_prop = [ι X W[:, prop]]
+        U_prop = [ι X W_c[:, prop]]
         
         acc = min(1, exp(
             marginal_likelihood_outcome(y_tilde, U_prop, σ_y_x, g_L) + model_prior(prop, k, 1, m[1]) - 
@@ -173,7 +173,7 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
 
         # Update model
         prop = mc3_proposal(M)
-        V_prop = [ι [Z W][:, prop]]
+        V_prop = [ι [Z_c W_c][:, prop]]
 
         acc = min(1, exp(
             marginal_likelihood_treatment(Q_tilde, B, V_prop, Σ_xx, g_M) + model_prior(prop, k+p, 1, m[2]) -
