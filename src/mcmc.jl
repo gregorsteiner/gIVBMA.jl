@@ -76,11 +76,10 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
 
     # Some precomputations
     ι = ones(n)
-    U = [X W_c[:, L]]
-    A = calc_A(U, g_L)
+    U = [ι X W_c[:, L]]
 
-    V = [Z_c W_c][:, M]
-    H = Q - (ι * Γ' + V * Δ)
+    V = [ι [Z_c W_c][:, M]]
+    H = Q - V * [Γ'; Δ]
 
     # Gibbs sampler
     for i in 1:iter
@@ -90,8 +89,8 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
         B = calc_B_Σ(σ_y_x, Σ_yx, Σ_xx)
 
         # Step 0.1: Draw latent Gaussian Q
-        Mean_y = α * ι + U * [τ; β]
-        Mean_Q = ι * Γ' + V * Δ
+        Mean_y = U * [α; τ; β]
+        Mean_Q = V * [Γ'; Δ]
 
         for (idx_d, d) in enumerate(dist)
             if d != "Gaussian"
@@ -133,50 +132,48 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
         end
 
         # Update residuals
-        H = Q - (ι * Γ' + V * Δ)
+        H = Q - V * [Γ'; Δ]
         y_tilde = y - H * inv(Σ_xx) * Σ_yx
 
         # Step 1: Outcome model
         # Update model
         prop = mc3_proposal(L)
-        U_prop = [X W[:, prop]]
-        A_prop = calc_A(U_prop, g_L)
+        U_prop = [ι X W[:, prop]]
         
         acc = min(1, exp(
-            marginal_likelihood_outcome(y_tilde, A_prop, U_prop, σ_y_x, g_L) + model_prior(prop, k, 1, m[1]) - 
-            (marginal_likelihood_outcome(y_tilde, A, U, σ_y_x, g_L) + model_prior(L, k, 1, m[1]))
+            marginal_likelihood_outcome(y_tilde, U_prop, σ_y_x, g_L) + model_prior(prop, k, 1, m[1]) - 
+            (marginal_likelihood_outcome(y_tilde, U, σ_y_x, g_L) + model_prior(L, k, 1, m[1]))
         ))
         if rand() < acc
-            L, U, A = (prop, U_prop, A_prop)
+            L, U = (prop, U_prop)
         end
 
         # Update g_L
         if random_g
             prop = rand(LogNormal(log(g_L), sqrt(proposal_variance_g_L)))
-            A_prop = calc_A(U, prop)
 
             acc = min(1, exp(
-                marginal_likelihood_outcome(y_tilde, A_prop, U, σ_y_x, prop) + log(hyper_g_n(prop; a = 3, n = n)) + log(prop) - 
-                (marginal_likelihood_outcome(y_tilde, A, U, σ_y_x, g_L) + log(hyper_g_n(g_L; a = 3, n = n)) + log(g_L))
+                marginal_likelihood_outcome(y_tilde, U, σ_y_x, prop) + log(hyper_g_n(prop; a = 3, n = n)) + log(prop) - 
+                (marginal_likelihood_outcome(y_tilde, U, σ_y_x, g_L) + log(hyper_g_n(g_L; a = 3, n = n)) + log(g_L))
             ))
             if rand() < acc
-                g_L, A = (prop, A_prop)
+                g_L = prop
             end
             proposal_variance_g_L = adjust_variance(proposal_variance_g_L, acc, 0.234, i)
         end
 
         # Update parameters
-        α, τ, β = post_sample_outcome(y_tilde, X, A, U, σ_y_x)
+        α, τ, β = post_sample_outcome(y_tilde, X, U, σ_y_x, g_L)
 
         # Update residuals
-        ϵ = y - (α * ι + U * [τ; β])
+        ϵ = y - U * [α; τ; β]
         Q_tilde = Q - (1/σ_y_x) * ϵ * Σ_yx' * inv(B)'
 
         # Step 2: Treatment model
 
         # Update model
         prop = mc3_proposal(M)
-        V_prop = [Z W][:, prop]
+        V_prop = [ι [Z W][:, prop]]
 
         acc = min(1, exp(
             marginal_likelihood_treatment(Q_tilde, B, V_prop, Σ_xx, g_M) + model_prior(prop, k+p, 1, m[2]) -
@@ -203,7 +200,7 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
         Γ, Δ = post_sample_treatment(Q_tilde, B, V, Σ_xx, g_M)
 
         # Update residuals
-        H = Q - (ι * Γ' + V * Δ)
+        H = Q - V * [Γ'; Δ]
 
         # Step 3: Update covariance
         Σ = post_sample_cov(ϵ, H, ν)
