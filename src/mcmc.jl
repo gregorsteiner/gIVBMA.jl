@@ -43,6 +43,9 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
         random_g = true
     end
 
+    # ν prior
+    random_ν = isnothing(ν)
+
     # starting values
     L = sample([true, false], k, replace = true)
     M = sample([true, false], k+p, replace = true)
@@ -54,6 +57,12 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
     g_L, g_M = (max(n, k^2), max(n, (k+p)^2))
     if random_g
         proposal_variance_g_L, proposal_variance_g_M = (0.01, 0.01)
+    end
+
+    ν = l + 2
+    if random_ν
+        p_ν = size(Z, 2) + size(W, 2) + 3
+        proposal_variance_ν = 0.01
     end
 
     Q = copy(X)
@@ -73,6 +82,8 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
     M_samples = zeros(Bool, nsave, k + p)
     G_samples = zeros(nsave, 2)
     Q_samples = zeros(nsave, n, l)
+    r_samples = zeros(nsave, l)
+    ν_samples = zeros(nsave)
 
     # Some precomputations
     ι = ones(n)
@@ -202,8 +213,23 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
         # Update residuals
         H = Q - V * [Γ'; Δ]
 
-        # Step 3: Update covariance
+        # Step 3.1: Update covariance
         Σ = post_sample_cov(ϵ, H, ν)
+
+        # Step 3.2: Update ν
+        if random_ν
+            proposal_distribution = truncated(Normal(ν, sqrt(proposal_variance_ν)), l, Inf)
+            prop = rand(proposal_distribution)
+
+            acc = min(1, exp(
+                logpdf(InverseWishart(prop, Matrix(1.0I, l+1, l+1)), Σ) + jp_ν(prop, p_ν) - logpdf(proposal_distribution, prop) -
+                (logpdf(InverseWishart(ν, Matrix(1.0I, l+1, l+1)), Σ) + jp_ν(ν, p_ν) - logpdf(truncated(Normal(prop, sqrt(proposal_variance_ν)), l, Inf), ν))
+            ))
+            if rand() < acc
+                ν = prop
+            end
+            proposal_variance_ν = adjust_variance(proposal_variance_ν, acc, 0.234, i)
+        end
 
         # Step 4: Store sampled values after burn in
         if i > burn
@@ -217,6 +243,8 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
             M_samples[i - burn, :] = M
             G_samples[i - burn, :] = [g_L, g_M]
             Q_samples[i - burn, :, :] = Q
+            r_samples[i - burn, :] = r
+            ν_samples[i - burn] = ν
         end
 
     end
@@ -235,7 +263,9 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
         L = L_samples,
         M = M_samples,
         G = G_samples,
-        Q = Q_samples
+        Q = Q_samples,
+        r = r_samples,
+        ν = ν_samples
     )
 
 end
