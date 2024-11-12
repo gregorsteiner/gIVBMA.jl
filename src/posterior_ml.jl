@@ -1,106 +1,85 @@
 
 
 """
-    This file includes all files to sample from conditonal posteriors and compute conditional marginal likelihoods.
+    Helper functions for repeated small calculations
 """
+function variances(Σ)
+    Σ_xx = Σ[2:end, 2:end]
+    Σ_yx = Σ[2:end, 1]
+    σ_y_x = Σ[1,1] - Σ_yx' * inv(Σ_xx) * Σ_yx
 
-# an auxiliary function to compute ψ
-function calc_psi(Σ)
-    return sqrt(Σ[1,1] - Σ[1,2]^2 / Σ[2,2])
+    return (σ_y_x, Σ_yx, Σ_xx)
 end
 
-function post_sample_outcome(y, U, U_t_U, η, Σ, g)
-    n = length(y)
-    ψ = calc_psi(Σ)
-
-    y_bar = Statistics.mean(y)
-    η_bar = Statistics.mean(η)
-
-    if (rank(U_t_U) < size(U_t_U, 1))
-        error("Non-full rank model!")
-    end
-
-    B = g/(g+1) * inv(U_t_U)
-
-    α = rand(Normal(y_bar - Σ[1,2]/Σ[2,2] * η_bar, ψ^2/n))
-
-    Mean = B * U' * (y - Σ[1,2]/Σ[2,2] * η)
-    β_tilde = rand(MvNormal(Mean, Symmetric(ψ^2 * B)))
-    τ = β_tilde[1]
-    β = β_tilde[2:end]    
+function calc_A(U, g)
+    ι = ones(size(U, 1))
+    P_ι = ι * inv(ι'ι) * ι'
     
-    return (α = α, τ = τ, β = β)
+    A = inv(U' * ((g+1)/g * I - P_ι) * U)
+    return A
 end
 
-function post_sample_treatment(x, V, V_t_V, ϵ, Σ, g)
-    n = length(x)
+calc_B_Σ(σ_y_x, Σ_yx, Σ_xx) = I + Σ_yx * Σ_yx' * inv(Σ_xx) / σ_y_x
 
-    if (rank(V_t_V) < size(V_t_V, 1))
-        error("Non-full rank model!")
-    end
 
-    ψ = calc_psi(Σ)
-    ϵ_bar = Statistics.mean(ϵ)
+"""
+    Functions to sample from the conditional posteriors and compute marginal likelihoods.
+"""
+function post_sample_outcome(y_tilde, X, A, U, σ_y_x)
+    n = size(X, 1); l = size(X, 2)
+    ι = ones(n)
+    M_ι = I - ι * inv(ι'ι) * ι'
 
-    a = Σ[1,2]^2/(Σ[2,2] * ψ^2) + 1
-    A = (g / (a*g + 1)) * inv(V_t_V)
+    β_tilde = rand(MvNormal(A * U' * M_ι * y_tilde, Symmetric(σ_y_x * A)))
+    τ, β = (β_tilde[1:l], β_tilde[(l+1):end])
+    α = rand(Normal(ι' * (y_tilde - X * τ) / n, σ_y_x / n))
 
-    γ = rand(Normal(-Σ[1,2]/a * ϵ_bar, Σ[2,2]/(a*n))) 
+    return (α, τ, β)
+end
 
-    δ = rand(MvNormal(a * A * V' * (x - (Σ[1,2]/Σ[1,1]) * ϵ), Σ[2,2] * Symmetric(A)))
+function marginal_likelihood_outcome(y_tilde, A, U, σ_y_x, g)
+    n = length(y_tilde)
+    ι = ones(n)
+    M_ι = I - ι * inv(ι'ι) * ι'
+
+    ml = (1/2) * (log(det(A)) - log(det(g * inv(U'U)))) - (1/(2*σ_y_x)) * y_tilde' * M_ι * (I - U * A * U') * M_ι * y_tilde
+    return ml 
+end
+
+
+function post_sample_treatment(X_tilde, B, V, Σ_xx, g)
+    n = size(X_tilde, 1)
+    V_t_V_inv = inv(V'V)
+    ι = ones(n)
+
+    Γ = rand(MvNormal((ι' * X_tilde / n)[1,:], Symmetric((1/n) * inv(B) * Σ_xx)))
+    Δ = rand(MatrixNormal( V_t_V_inv * V'X_tilde * inv(I + 1/g * inv(B))', Symmetric(V_t_V_inv), Symmetric(inv(B + 1/g * I))))
     
-    return (γ = γ, δ = δ)
+    return (Γ, Δ)
 end
 
-function post_sample_cov(ϵ, η, ν)
-    n = length(ϵ)
+function marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g)
+    n, k_M = size(V)
+    l = size(X_tilde, 2)
+    P_V = V * inv(V'V) * V'
+    P_ι = ones(n) * ones(n)' / n
 
-    Q = [ϵ η]' * [ϵ η]
-    if any(map(!isfinite, Q))
-        error("Infinite sample covariance: Try increasing ν!")
-    end
+    C = inv(I + 1/g * inv(B))
+    D = (B + 1/g * I)
+    S = - inv(Σ_xx) * D * C * X_tilde' * P_V * X_tilde * C'
+
+    ml = -(l*k_M/2) * log(g) - (n/2) * log(det(B + 1/g * I)) - (1/2) * tr(S)
+    return ml
+end
+
+function post_sample_cov(ϵ, H, ν)
+    n = size(ϵ, 1)
+    Q = [ϵ H]' * [ϵ H]
+
     Σ = rand(InverseWishart(ν + n, I + Q))
-    return (Σ = Σ)
+    return Σ
 end
 
-function marginal_likelihood_outcome(y, U, U_t_U, η, Σ, g)
-    n = length(y)
-    k = size(U, 2)
-
-    if (rank(U_t_U) < size(U_t_U, 1))
-        error("Non-full rank model!")
-    end
-    
-    ψ = calc_psi(Σ)
-    y_bar = Statistics.mean(y)
-    η_bar = Statistics.mean(η)
-
-    y_tilde = y - Σ[1,2]/Σ[2,2] * η 
-    s = y_tilde' * (I - g/(g+1) * (U * inv(U_t_U) * U')) * y_tilde - n * (y_bar - Σ[1,2]/Σ[2,2] * η_bar)^2
-    
-    log_ml =  (-(k)/2)*log(g+1) - s/(2*ψ^2)
-    return log_ml
-end
-
-function marginal_likelihood_treatment(x, V, V_t_V, ϵ, Σ, g)
-    n = length(x)
-    k = size(V, 2)
-
-    if (rank(V_t_V) < size(V_t_V, 1))
-        error("Non-full rank model!")
-    end
-
-    ψ = calc_psi(Σ)
-    ϵ_bar = Statistics.mean(ϵ)
-
-    a = Σ[1,2]^2/(Σ[2,2] * ψ^2) + 1
-
-    x_tilde = (x - (Σ[1,2]/Σ[1,1]) * ϵ)
-    t = (Σ[2,2]/Σ[1,1]) * ϵ'ϵ + x'x - 2 * (Σ[1,2]/Σ[1,1]) * ϵ'x - n * (Σ[1,2]^2/a^2) * ϵ_bar^2 - (a*g / (a*g+1)) * (x_tilde' * (V * inv(V_t_V) * V') * x_tilde)
-    
-    log_ml = (-k/2)*log(1 + g*a) - a*t/(2*Σ[2,2])
-    return log_ml
-end
 
 
 """

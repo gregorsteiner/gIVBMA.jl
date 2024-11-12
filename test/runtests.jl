@@ -1,53 +1,41 @@
+
+
 using IVBMA
 using Test
 
-include("helpers.jl")
 
-# Define test parameters
-true_tau = 0.1  # The true value of tau used to generate the data
+using DataFrames, CSV, InvertedIndices, Random, LinearAlgebra, Distributions
 
-@testset "IVBMA" begin
-    Random.seed!(42)
-    data = gen_data_KO2010(200, 1, true_tau)
+data_path = joinpath(@__DIR__, "data", "Carstensen_Gundlach.csv")
+df = CSV.read(data_path, DataFrame, missingstring="-999.999")
 
-    res = ivbma(data.y, data.x, data.Z, data.W)
-    res_2c = ivbma(data.y, data.x, data.Z, data.W; two_comp = true)
+# change column names to match paper
+rename!(df, :kaufman => "rule", :mfalrisk => "malfal", :exprop2 => "exprop", :lngdpc95 => "lngdpc",
+        :frarom => "trade", :lat => "latitude", :landsea => "coast")
 
-    @test isapprox(mean(res.τ), true_tau; atol=0.1)
-    @test isapprox(mean(res_2c.τ), true_tau; atol=0.1)
-end
+# only keep required columns  
+needed_columns = ["lngdpc", "rule", "malfal", "maleco", "lnmort", "frost", "humid",
+                  "latitude", "eurfrac", "engfrac", "coast", "trade"]
+df = df[:, needed_columns]
 
-@testset "IVBMA-Inv" begin
-    Random.seed!(42)
-    data = gen_data_Kang2016(200, true_tau)
+# drop all observations with missing values in the variables
+dropmissing!(df)
 
-    res = ivbma(data.y, data.x, data.Z)
-   
-    @test isapprox(mean(res.τ), true_tau; atol=0.1)
-end
+# fit models
+y = df.lngdpc
+X = [df.rule df.malfal]
+Z = Matrix(df[:, needed_columns[Not(1:3)]])
 
-@testset "IVBMA-PLN" begin
-    Random.seed!(42)
-    data = gen_data_pln(200, 1, true_tau)
+# test if posterior means are close to expected values
+@testset "CG" begin
+    expected_taus = [0.8, -1.0]
 
-    res = ivbma(data.y, data.x, data.Z, data.W; dist = "PLN")
-    res_2c = ivbma(data.y, data.x, data.Z, data.W; dist = "PLN", two_comp = true)
+    res = ivbma(y, X, Z)
+    res_hyperg = ivbma(y, X, Z; g_prior = "hyper-g/n")
+    res_BL = ivbma(y, X, Z; dist = ["Gaussian", "BL"])
 
-    res_inv = ivbma(data.y, data.x, [data.Z data.W]; dist = "PLN")
-
-    @test isapprox(mean(res.τ), true_tau; atol=0.1)
-    @test isapprox(mean(res_2c.τ), true_tau; atol=0.1)
-    @test isapprox(mean(res_inv.τ), true_tau; atol=0.1)
-end
-
-@testset "IVBMA-BL" begin
-    Random.seed!(42)
-    data = gen_data_bl(200, 1, true_tau)
-
-    res = ivbma(data.y, data.x, data.Z, data.W; dist = "BL")
-    res_2c = ivbma(data.y, data.x, data.Z, data.W; dist = "BL", two_comp = true)
-
-    @test isapprox(mean(res.τ), true_tau; atol=0.3)
-    @test isapprox(mean(res_2c.τ), true_tau; atol=0.3)
+    @test isapprox(mean(res.τ, dims = 1)[1,:], expected_taus; atol = 0.1)
+    @test isapprox(mean(res_hyperg.τ, dims = 1)[1,:], expected_taus; atol = 0.2)
+    @test isapprox(mean(res_BL.τ, dims = 1)[1,:], expected_taus; atol = 0.1)
 end
 
