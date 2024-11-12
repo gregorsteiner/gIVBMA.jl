@@ -11,13 +11,6 @@ function variances(Σ)
     return (σ_y_x, Σ_yx, Σ_xx)
 end
 
-function calc_A(U, g)
-    ι = ones(size(U, 1))
-    P_ι = ι * inv(ι'ι) * ι'
-    
-    A = inv(U' * ((g+1)/g * I - P_ι) * U)
-    return A
-end
 
 calc_B_Σ(σ_y_x, Σ_yx, Σ_xx) = I + Σ_yx * Σ_yx' * inv(Σ_xx) / σ_y_x
 
@@ -25,24 +18,22 @@ calc_B_Σ(σ_y_x, Σ_yx, Σ_xx) = I + Σ_yx * Σ_yx' * inv(Σ_xx) / σ_y_x
 """
     Functions to sample from the conditional posteriors and compute marginal likelihoods.
 """
-function post_sample_outcome(y_tilde, X, A, U, σ_y_x)
+function post_sample_outcome(y_tilde, X, U, σ_y_x, g)
     n = size(X, 1); l = size(X, 2)
     ι = ones(n)
-    M_ι = I - ι * inv(ι'ι) * ι'
+    sf = g / (g+1)
 
-    β_tilde = rand(MvNormal(A * U' * M_ι * y_tilde, Symmetric(σ_y_x * A)))
-    τ, β = (β_tilde[1:l], β_tilde[(l+1):end])
-    α = rand(Normal(ι' * (y_tilde - X * τ) / n, σ_y_x / n))
-
+    ρ = rand(MvNormal(sf * inv(U'U) * U' * y_tilde, Symmetric(σ_y_x * sf * inv(U'U))))
+    α, τ, β = (ρ[1], ρ[2:(l+1)], ρ[(l+2):end])
+    
     return (α, τ, β)
 end
 
-function marginal_likelihood_outcome(y_tilde, A, U, σ_y_x, g)
-    n = length(y_tilde)
-    ι = ones(n)
-    M_ι = I - ι * inv(ι'ι) * ι'
+function marginal_likelihood_outcome(y_tilde, U, σ_y_x, g)
+    n, k_U = size(U)
+    P_U = U * inv(U'U) * U'
 
-    ml = (1/2) * (log(det(A)) - log(det(g * inv(U'U)))) - (1/(2*σ_y_x)) * y_tilde' * M_ι * (I - U * A * U') * M_ι * y_tilde
+    ml = -(k_U/2) * log(g+1) - (1/(2*σ_y_x)) * y_tilde' * (I - g/(g+1) * P_U) * y_tilde
     return ml 
 end
 
@@ -50,10 +41,9 @@ end
 function post_sample_treatment(X_tilde, B, V, Σ_xx, g)
     n = size(X_tilde, 1)
     V_t_V_inv = inv(V'V)
-    ι = ones(n)
 
-    Γ = rand(MvNormal((ι' * X_tilde / n)[1,:], Symmetric((1/n) * inv(B) * Σ_xx)))
-    Δ = rand(MatrixNormal( V_t_V_inv * V'X_tilde * inv(I + 1/g * inv(B))', Symmetric(V_t_V_inv), Symmetric(inv(B + 1/g * I))))
+    Λ = rand(MatrixNormal( V_t_V_inv * V'X_tilde * inv(I + 1/g * inv(B))', Symmetric(V_t_V_inv), Symmetric(inv(B + 1/g * I) * Σ_xx)))
+    Γ, Δ = (Λ[1, :], Λ[2:end, :])
     
     return (Γ, Δ)
 end
@@ -62,7 +52,6 @@ function marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g)
     n, k_M = size(V)
     l = size(X_tilde, 2)
     P_V = V * inv(V'V) * V'
-    P_ι = ones(n) * ones(n)' / n
 
     C = inv(I + 1/g * inv(B))
     D = (B + 1/g * I)
