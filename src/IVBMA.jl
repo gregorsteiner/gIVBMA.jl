@@ -4,12 +4,13 @@ using LinearAlgebra, Distributions, Statistics, Random
 using InvertedIndices, SpecialFunctions
 using PrettyTables, Infiltrator
 
-export ivbma
+export ivbma, lps
 
 include("priors.jl")
 include("posterior_ml.jl")
 include("non_gaussian.jl")
 include("mcmc.jl")
+include("lps.jl")
 
 
 """
@@ -26,11 +27,11 @@ include("mcmc.jl")
     - `W::AbstractMatrix{<:Real}` a matrix of exogenous control variates
     - `iter::Integer = 2000` the number of iterations of the Gibbs sampler
     - `burn::Integer = 1000` the number of initial iteratios to discard as burn-in (should be less than `iter`)
-    - `two_comp::Bool = false` if true the two-componentn g-prior is used for the treatment parameters
     - `dist::String = repeat(["Gaussian"], size(X, 2))` a vector of strings containing the distribution s of all endogenous variabes; currently "Gaussian" (default), "PLN" (Poisson-Log-Normal), and "BL" (Beta-Logistic) are implemented
     - `ν = size(X::AbstractVector{<:Real}, 2) + 2` the covariance degrees of freedom ν
-    - `g_prior = "BRIC"` the prior choice of g; currently BRIC (g = max(n, p^2)) and a hyper-g/n prior are implemnted .
+    - `g_prior = "BRIC"` the prior choice of g; currently BRIC (g = max(n, p^2)) and a hyper-g/n prior are implemnted
     - `m::Union{AbstractVector, Nothing} = nothing` the prior mean model size (defaults to k/2 where k is the number of covariates)
+    - `r_prior::Distribution = Exponential(1)` the prior on the dispersion parameter r (only relevant for Beta-Logistic model)
 """
 function ivbma(
     y::AbstractVector{<:Real},

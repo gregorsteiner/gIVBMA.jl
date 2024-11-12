@@ -1,7 +1,7 @@
 
 
 """
-    Logistic function 
+    (Inverse) Logistic function 
 """
 logit(x) = exp(x) / (1+exp(x))
 

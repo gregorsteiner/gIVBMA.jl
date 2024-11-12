@@ -19,6 +19,7 @@ function adjust_variance(curr_variance, acc_prob, desired_acc_prob, iter)
     return exp(log_variance)
 end
 
+
 """
     The main MCMC function that returns posterior samples.
 """
@@ -28,8 +29,8 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
     p = size(Z, 2); k = size(W, 2)
 
     # centre instruments and covariates
-    Z = Z .- mean(Z; dims = 1)
-    W = W .- mean(W; dims = 1)
+    Z_c = Z .- mean(Z; dims = 1)
+    W_c = W .- mean(W; dims = 1)
 
     if length(dist) != l
         error("`dist` must have an element for each column of X")
@@ -50,7 +51,7 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
     Γ, Δ = (zeros(l), zeros(k+p, l)[M, :])
     Σ = Diagonal(ones(l+1))
     
-    g_L, g_M = (max(n, k^2), l * max(n, (k+p)^2))
+    g_L, g_M = (max(n, k^2), max(n, (k+p)^2))
     if random_g
         proposal_variance_g_L, proposal_variance_g_M = (0.01, 0.01)
     end
@@ -75,10 +76,10 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
 
     # Some precomputations
     ι = ones(n)
-    U = [X W[:, L]]
+    U = [X W_c[:, L]]
     A = calc_A(U, g_L)
 
-    V = [Z W][:, M]
+    V = [Z_c W_c][:, M]
     H = Q - (ι * Γ' + V * Δ)
 
     # Gibbs sampler
@@ -223,8 +224,11 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
 
     end
 
-    
     return (
+        y = y,
+        X = X,
+        Z = Z,
+        W = W,
         α = α_samples,
         τ = τ_samples,
         β = β_samples,
