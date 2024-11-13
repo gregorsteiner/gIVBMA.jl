@@ -72,9 +72,9 @@ function set_values_0_1(x, q, r)
     B_α = μ * r
     B_β = r * (1 .- μ)
     for i in eachindex(x)
-        if x[i] <= 0.001
+        if x[i] <= 0.0005
             x[i] = rand(truncated(Beta(B_α[i], B_β[i]), 1e-12, 0.001))
-        elseif x[i] >= 0.999
+        elseif x[i] >= 0.9995
             x[i] = rand(truncated(Beta(B_α[i], B_β[i]), 0.999, 1 - 1e-12))
         end
     end
