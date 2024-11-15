@@ -5,7 +5,7 @@
 function lps(ivbma, y_h, X_h, Z_h, W_h)
     # if X is a vector turn it into an nx1 matrix
     if ndims(X_h) == 1
-        X = permutedims(X_h)'
+        X_h = permutedims(X_h)'
     end
 
     n_h, l = size(X_h)
@@ -46,7 +46,7 @@ end
 function lps(ivbma, y_h, X_h, Z_h)
     # if X is a vector turn it into an nx1 matrix
     if ndims(X_h) == 1
-        X = permutedims(X_h)'
+        X_h = permutedims(X_h)'
     end
     n_h, l = size(X_h)
     n_post = length(ivbma.α)
