@@ -50,10 +50,6 @@ function ivbma(
         X = permutedims(X)'
     end
 
-    # centre covariates and instruments
-    Z = Z .- mean(Z; dims = 1)
-    W = W .- mean(W; dims = 1)
-
     # Use default prior mean model size if not specified
     k = size(W, 2)
     p = size(Z, 2)
@@ -82,9 +78,6 @@ function ivbma(
     if ndims(X) == 1
         X = permutedims(X)'
     end
-
-    # centre instruments
-    Z = Z .- mean(Z; dims = 1)
 
     # Use default prior mean model size if not specified
     n = length(y)
