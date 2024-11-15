@@ -23,10 +23,11 @@ include("lps.jl")
     - `y::AbstractVector{<:Real}` a vector containing the outcome
     - `X::AbstractVecOrMat{<:Real}` a vector containing the endogenous variables
     - `Z::AbstractMatrix{<:Real}` a matrix of potential instruments
-    - `W::AbstractMatrix{<:Real}` a matrix of exogenous control variates
+    - `W::AbstractMatrix{<:Real}` a matrix of exogenous control variates (optional)
     - `iter::Integer = 2000` the number of iterations of the Gibbs sampler
     - `burn::Integer = 1000` the number of initial iteratios to discard as burn-in (should be less than `iter`)
     - `dist::String = repeat(["Gaussian"], size(X, 2))` a vector of strings containing the distribution s of all endogenous variabes; currently "Gaussian" (default), "PLN" (Poisson-Log-Normal), and "BL" (Beta-Logistic) are implemented
+    - `two_comp::Bool = false` a Boolean indicating whether the two-component g-prior should be used for the treatment parameters. This is currently only implemented for a single endogenous variable.
     - `ν = size(X::AbstractVector{<:Real}, 2) + 2` the covariance degrees of freedom ν
     - `g_prior = "BRIC"` the prior choice of g; currently BRIC (g = max(n, p^2)) and a hyper-g/n prior are implemnted
     - `m::Union{AbstractVector, Nothing} = nothing` the prior mean model size (defaults to k/2 where k is the number of covariates)
@@ -40,6 +41,7 @@ function ivbma(
     iter::Integer = 2000,
     burn::Integer = 1000,
     dist::Vector{String} = repeat(["Gaussian"], size(X, 2)),
+    two_comp::Bool = false,
     ν::Union{Nothing, Number} = nothing,
     g_prior::String = "BRIC",
     m::Union{AbstractVector, Nothing} = nothing,
@@ -57,7 +59,7 @@ function ivbma(
         m = [k/2, (k+p)/2]
     end
 
-    res = ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
+    res = ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_prior)
 
     return res
 end
@@ -69,6 +71,7 @@ function ivbma(
     iter::Integer = 2000,
     burn::Integer = 1000,
     dist::Vector{String} = repeat(["Gaussian"], size(X, 2)),
+    two_comp = false,
     ν::Union{Nothing, Number} = nothing,
     m::Union{AbstractVector, Nothing} = nothing,
     g_prior::String = "BRIC",
@@ -86,7 +89,7 @@ function ivbma(
         m = [p/2, p/2]
     end
 
-    res = ivbma_mcmc(y, X, Matrix{Float64}(undef, n, 0), Z, dist, iter, burn, ν, m, g_prior, r_prior)
+    res = ivbma_mcmc(y, X, Matrix{Float64}(undef, n, 0), Z, dist, two_comp, iter, burn, ν, m, g_prior, r_prior)
 
     return res
 end
