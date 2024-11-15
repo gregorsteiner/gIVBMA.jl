@@ -38,7 +38,7 @@ function marginal_likelihood_outcome(y_tilde, U, σ_y_x, g)
 end
 
 
-function post_sample_treatment(X_tilde, B, V, Σ_xx, g)
+function post_sample_treatment(X_tilde, B, V, Σ_xx, g::Number)
     n = size(X_tilde, 1)
     V_t_V_inv = inv(V'V)
 
@@ -48,7 +48,7 @@ function post_sample_treatment(X_tilde, B, V, Σ_xx, g)
     return (Γ, Δ)
 end
 
-function marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g)
+function marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g::Number)
     n, k_M = size(V)
     l = size(X_tilde, 2)
     P_V = V * inv(V'V) * V'
@@ -72,53 +72,31 @@ end
 
 
 """
-    Modified functions for the treatment posterior and marginal likelihood based on the two-component prior.
+    Modified methods for the treatment posterior and marginal likelihood based on the two-component prior.
 """
-function post_sample_treatment_2c(x, V, V_t_V, ϵ, Σ, G)
-    n = length(x)
-
-    if (rank(V_t_V) < size(V_t_V, 1))
-        error("Non-full rank model!")
-    end
-
-    ψ = calc_psi(Σ)
-    a = Σ[1,2]^2/(Σ[2,2] * ψ^2) + 1
-    ϵ_bar = Statistics.mean(ϵ)
-
-    A = inv(a * V_t_V + inv(G) * V_t_V * inv(G))
-
-    γ = rand(Normal(-Σ[1,2]/a * ϵ_bar, Σ[2,2]/(a*n))) 
-    δ = rand(MvNormal(a * A * V' * (x - (Σ[1,2]/Σ[1,1]) * ϵ), Σ[2,2] * Symmetric(A)))
-
-    return (γ = γ, δ = δ)
+function post_sample_treatment(X_tilde, B, V, Σ_xx, G::AbstractMatrix)
+    b = B[1, 1] # must be 1x1 (two-comp prior is only supported in the scalar case)
+    A_G = inv(b * V'V + inv(G) * V'V * inv(G))
+    #λ = rand(MvNormal(b * A_G * V' * X_tilde[:, 1], Σ_xx[1,1] * A_G))
+    Λ = rand(MatrixNormal(b * A_G * V' * X_tilde,  Symmetric(A_G), Symmetric(Σ_xx)))
+    Γ, Δ = (Λ[1, :], Λ[2:end, :])
+    
+    return (Γ, Δ)
 end
 
+function marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, G::AbstractMatrix)
+    b = B[1, 1] # must be 1x1 (two-comp prior is only supported in the scalar case)
+    A_G = inv(b * V'V + inv(G) * V'V * inv(G))
 
-function marginal_likelihood_treatment_2c(x, V, V_t_V, ϵ, Σ, G)
-    n = length(x)
-
-    if (rank(V_t_V) < size(V_t_V, 1))
-        error("Non-full rank model!")
-    end
-
-    ψ = calc_psi(Σ)
-    a = Σ[1,2]^2/(Σ[2,2] * ψ^2) + 1
-    ϵ_bar = Statistics.mean(ϵ)
-
-    A = inv(a * V_t_V + inv(G) * V_t_V * inv(G))
-    
-    x_tilde = (x - (Σ[1,2]/Σ[1,1]) * ϵ)
-    t = (Σ[2,2]/Σ[1,1]) * ϵ'ϵ + x'x - 2 * (Σ[1,2]/Σ[1,1]) * ϵ'x - n * (Σ[1,2]^2/a^2) * ϵ_bar^2 - (x_tilde' * V * A * V' * x_tilde)
-
-    log_ml = (1/2)*(log(det(A)) - log(det(G* inv(V_t_V) * G))) - a*t/(2*Σ[2,2])
+    log_ml = (1/2)*(log(det(A_G)) - log(det(G * inv(V'V) * G))) + b^2 / 2 * tr(inv(Σ_xx) * X_tilde' * V * A_G * V' * X_tilde)
     return log_ml
 end
 
 """
     Helper function to construct the G matrix.
 """
-function G_constr(g_s, g_l, ind, p, k)
-    return Diagonal([repeat([sqrt(g_s)], p); repeat([sqrt(g_l)], k)])[ind, ind]
+function G_constr(g, ind, p, k)
+    return Diagonal([sqrt(g[1]); [repeat([sqrt(g[2])], p); repeat([sqrt(g[1])], k)][ind]])
 end
 
 

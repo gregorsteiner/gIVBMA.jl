@@ -23,7 +23,7 @@ end
 """
     The main MCMC function that returns posterior samples.
 """
-function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
+function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_prior)
     # dimensions
     n, l = size(X)
     p = size(Z, 2); k = size(W, 2)
@@ -58,6 +58,13 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
     if random_g
         proposal_variance_g_L, proposal_variance_g_M = (0.01, 0.01)
     end
+    if two_comp
+        if l > 1
+            error("Using the two-component g-prior with multiple endogenous variables is currently not supported.")
+        end
+        g_M = [n, n^(1/2)]
+        proposal_variance_g_M = 0.01
+    end
 
     ν = l + 2
     if random_ν
@@ -80,7 +87,7 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
     Σ_samples = Array{Matrix{Float64}}(undef, nsave)
     L_samples = zeros(Bool, nsave, k)
     M_samples = zeros(Bool, nsave, k + p)
-    G_samples = zeros(nsave, 2)
+    G_samples = two_comp ? zeros(nsave, 3) : zeros(nsave, 2)
     Q_samples = zeros(nsave, n, l)
     r_samples = zeros(nsave, l)
     ν_samples = zeros(nsave)
@@ -186,16 +193,32 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
         prop = mc3_proposal(M)
         V_prop = [ι [Z_c W_c][:, prop]]
 
+        if two_comp
+            G, G_prop = (G_constr(g_M, M, p, k), G_constr(g_M, prop, p, k))
+        else
+            G = G_prop = g_M
+        end
         acc = min(1, exp(
-            marginal_likelihood_treatment(Q_tilde, B, V_prop, Σ_xx, g_M) + model_prior(prop, k+p, 1, m[2]) -
-            (marginal_likelihood_treatment(Q_tilde, B, V, Σ_xx, g_M) + model_prior(M, k+p, 1, m[2]))
+            marginal_likelihood_treatment(Q_tilde, B, V_prop, Σ_xx, G_prop) + model_prior(prop, k+p, 1, m[2]) -
+            (marginal_likelihood_treatment(Q_tilde, B, V, Σ_xx, G) + model_prior(M, k+p, 1, m[2]))
         ))
         if rand() < acc
             M, V = (prop, V_prop)
         end
 
         # Update g_M
-        if random_g
+        if two_comp 
+            prop = exp.(rand(MvNormal(log.(g_M), [proposal_variance_g_M 0; 0 proposal_variance_g_M])))
+            G, G_prop = (G_constr(g_M, M, p, k), G_constr(prop, M, p, k))
+            acc = min(1, exp(
+                marginal_likelihood_treatment(Q_tilde, B, V, Σ_xx, G_prop) + log(hyper_g_n(prop[1]; a = 3, n = n)) + log(hyper_g_n(prop[2]; a = 4, n = n)) + sum(log.(prop)) -
+                (marginal_likelihood_treatment(Q_tilde, B, V, Σ_xx, G) + log(hyper_g_n(g_M[1]; a = 3, n = n)) + log(hyper_g_n(g_M[2]; a = 4, n = n)) + sum(log.(g_M)))
+            ))
+            if rand() < acc
+                g_M = prop
+            end
+            proposal_variance_g_M = adjust_variance.(proposal_variance_g_M, acc, 0.234, i)
+        elseif random_g
             prop = rand(LogNormal(log(g_M), sqrt(proposal_variance_g_M)))
             acc = min(1, exp(
                 marginal_likelihood_treatment(Q_tilde, B, V, Σ_xx, prop) + log(hyper_g_n(prop; a = 3, n = n)) + log(prop) -
@@ -208,7 +231,12 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
         end
 
         # Update parameters
-        Γ, Δ = post_sample_treatment(Q_tilde, B, V, Σ_xx, g_M)
+        if two_comp
+            G = G_constr(g_M, M, p, k)
+        else
+            G = g_M
+        end
+        Γ, Δ = post_sample_treatment(Q_tilde, B, V, Σ_xx, G)
 
         # Update residuals
         H = Q - V * [Γ'; Δ]
@@ -241,7 +269,7 @@ function ivbma_mcmc(y, X, Z, W, dist, iter, burn, ν, m, g_prior, r_prior)
             Σ_samples[i - burn] = Σ
             L_samples[i - burn, :] = L
             M_samples[i - burn, :] = M
-            G_samples[i - burn, :] = [g_L, g_M]
+            G_samples[i - burn, :] = [g_L; g_M]
             Q_samples[i - burn, :, :] = Q
             r_samples[i - burn, :] = r
             ν_samples[i - burn] = ν
