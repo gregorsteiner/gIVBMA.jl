@@ -61,7 +61,10 @@ end
 
 # posterior density for r in logs (only relevant for Beta-Logistic)
 function post_r(r, x, q, r_prior::Distribution)
-    post = sum([logpdf(Beta(logit(q[j]), r), x[j]) for j in eachindex(x)]) + logpdf(r_prior, r)
+    μ = logit.(q)
+    B_α = μ * r
+    B_β = r * (1 .- μ)
+    post = sum([logpdf(Beta(B_α[j], B_β[j]), x[j]) for j in eachindex(x)]) + logpdf(r_prior, r)
     return post
 end
 
