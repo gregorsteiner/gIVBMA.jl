@@ -72,7 +72,7 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
         proposal_variance_ν = 0.01
     end
 
-    Q = copy(X)
+    Q = copy(Float64.(X))
     proposal_variance_Q = ones(n, l) * 0.1
     r = ones(l) # dispersion parameter (only relevant for Beta-Logistic)
     proposal_variance_r = ones(l) * 0.1
