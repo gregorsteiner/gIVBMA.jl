@@ -40,7 +40,7 @@ function ivbma(
     W::AbstractMatrix{<:Real};
     iter::Integer = 2000,
     burn::Integer = 1000,
-    dist::Vector{String} = repeat(["Gaussian"], size(X, 2)),
+    dist::Vector{String} = repeat(["Gaussian"], size(X, 2) + 1),
     two_comp::Bool = false,
     ν::Union{Nothing, Number} = nothing,
     g_prior::String = "BRIC",
@@ -70,7 +70,7 @@ function ivbma(
     Z::AbstractMatrix{<:Real};
     iter::Integer = 2000,
     burn::Integer = 1000,
-    dist::Vector{String} = repeat(["Gaussian"], size(X, 2)),
+    dist::Vector{String} = repeat(["Gaussian"], size(X, 2) + 1),
     two_comp = false,
     ν::Union{Nothing, Number} = nothing,
     m::Union{AbstractVector, Nothing} = nothing,

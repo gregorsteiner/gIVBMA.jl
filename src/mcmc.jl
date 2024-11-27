@@ -32,8 +32,8 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
     Z_c = Z .- mean(Z; dims = 1)
     W_c = W .- mean(W; dims = 1)
 
-    if length(dist) != l
-        error("`dist` must have an element for each column of X")
+    if length(dist) != l+1
+        error("`dist` must have an element for each column of [y : X]")
     end
 
     # g prior
@@ -42,9 +42,6 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
     elseif g_prior == "hyper-g/n"
         random_g = true
     end
-
-    # ν prior
-    random_ν = isnothing(ν)
 
     # starting values
     L = sample([true, false], k, replace = true)
@@ -66,16 +63,20 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
         proposal_variance_g_M = 0.01
     end
 
-    ν = l + 2
-    if random_ν
+    # ν prior
+    random_ν = isnothing(ν)
+    if random_ν   
+        ν = l + 2
         p_ν = size(Z, 2) + size(W, 2) + 3
         proposal_variance_ν = 0.01
     end
 
-    Q = copy(Float64.(X))
-    proposal_variance_Q = ones(n, l) * 0.1
-    r = ones(l) # dispersion parameter (only relevant for Beta-Logistic)
-    proposal_variance_r = ones(l) * 0.1
+    Q = copy(Float64.([y X]))
+    proposal_variance_Q = ones(n, l + 1) * 0.1
+    r = ones(l + 1) # dispersion parameter (only relevant for Beta-Logistic)
+    proposal_variance_r = ones(l + 1) * 0.1
+    
+    q_y, Q_x = (Q[:, 1], Q[:, 2:end])
     
     # storage objects
     nsave = iter - burn
@@ -88,16 +89,14 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
     L_samples = zeros(Bool, nsave, k)
     M_samples = zeros(Bool, nsave, k + p)
     G_samples = two_comp ? zeros(nsave, 3) : zeros(nsave, 2)
-    Q_samples = zeros(nsave, n, l)
-    r_samples = zeros(nsave, l)
+    Q_samples = zeros(nsave, n, l + 1)
+    r_samples = zeros(nsave, l + 1)
     ν_samples = zeros(nsave)
 
     # Some precomputations
     ι = ones(n)
     U = [ι X W_c[:, L]]
-
     V = [ι [Z_c W_c][:, M]]
-    H = Q - V * [Γ'; Δ]
 
     # Gibbs sampler
     for i in 1:iter
@@ -107,26 +106,34 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
         B = calc_B_Σ(σ_y_x, Σ_yx, Σ_xx)
 
         # Step 0.1: Draw latent Gaussian Q
-        Mean_y = U * [α; τ; β]
-        Mean_Q = V * [Γ'; Δ]
+        Mean_q_y = U * [α; τ; β]
+        Mean_Q_x = V * [Γ'; Δ]
 
         for (idx_d, d) in enumerate(dist)
             if d != "Gaussian"
-
                 # Use set values for 0 and 1 observations in the Beta case
                 if d == "BL"
-                    X[:, idx_d] = set_values_0_1(X[:, idx_d], Q[:, idx_d], r[idx_d])
+                    if idx_d == 1
+                        y = set_values_0_1(y, q_y, r[idx_d])
+                    else
+                        X[:, idx_d-1] = set_values_0_1(X[:, idx_d-1], Q_x[:, idx_d-1], r[idx_d])
+                    end
                 end
 
                 q_curr = Q[:, idx_d]
-                GradCurr = gradient(y, X, Q, Mean_y, Mean_Q, σ_y_x, Σ_yx, Σ_xx, d, idx_d, r[idx_d])
-                q_prop = barker_proposal(q_curr, GradCurr, proposal_variance_Q[:, idx_d])
-                Q_prop = hcat(Q[:, 1:idx_d-1], q_prop, Q[:, idx_d+1:end])
-                GradProp = gradient(y, X, Q_prop, Mean_y, Mean_Q, σ_y_x, Σ_yx, Σ_xx, d, idx_d, r[idx_d])
+                grad_curr = gradient(y, X, q_y, Q_x, Mean_q_y, Mean_Q_x, σ_y_x, Σ_yx, Σ_xx, d, idx_d, r[idx_d])
+                post_curr = posterior_q(y, X, q_y, Q_x, Mean_q_y, Mean_Q_x, σ_y_x, Σ_yx, Σ_xx, d, idx_d, r[idx_d])
 
-                post_prop = posterior_q(y, X, Q_prop, Mean_y, Mean_Q, σ_y_x, Σ_yx, Σ_xx, d, idx_d, r[idx_d])
-                post_curr = posterior_q(y, X, Q, Mean_y, Mean_Q, σ_y_x, Σ_yx, Σ_xx, d, idx_d, r[idx_d])
-                corr_term = barker_correction_term(q_curr, q_prop, GradCurr, GradProp)
+                q_prop = barker_proposal(q_curr, grad_curr, proposal_variance_Q[:, idx_d])
+                if idx_d == 1
+                    grad_prop = gradient(y, X, q_prop, Q_x, Mean_q_y, Mean_Q_x, σ_y_x, Σ_yx, Σ_xx, d, idx_d, r[idx_d])
+                    post_prop = posterior_q(y, X, q_prop, Q_x, Mean_q_y, Mean_Q_x, σ_y_x, Σ_yx, Σ_xx, d, idx_d, r[idx_d])
+                else
+                    Q_x_prop = hcat(Q_x[:, 1:idx_d-2], q_prop, Q_x[:, idx_d:end])
+                    grad_prop = gradient(y, X, q_y, Q_x_prop, Mean_q_y, Mean_Q_x, σ_y_x, Σ_yx, Σ_xx, d, idx_d, r[idx_d])
+                    post_prop = posterior_q(y, X, q_y, Q_x_prop, Mean_q_y, Mean_Q_x, σ_y_x, Σ_yx, Σ_xx, d, idx_d, r[idx_d])
+                end
+                corr_term = barker_correction_term(q_curr, q_prop, grad_curr, grad_prop)
 
                 acc_prob = min.(ones(n), exp.(post_prop - post_curr + corr_term))
                 acc = rand(n) .< acc_prob
@@ -138,8 +145,8 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
                 if d == "BL"
                     prop = rand(LogNormal(log(r[idx_d]), proposal_variance_r[idx_d]))
                     acc = min(1, exp(
-                        post_r(prop, X[:, idx_d], Q[:, idx_d], r_prior) + log(prop) -
-                        (post_r(r[idx_d], X[:, idx_d], Q[:, idx_d], r_prior) + log(r[idx_d]))
+                        post_r(prop, [y X][:, idx_d], Q[:, idx_d], r_prior) + log(prop) -
+                        (post_r(r[idx_d], [y X][:, idx_d], Q[:, idx_d], r_prior) + log(r[idx_d]))
                     ))
                     if rand() < acc
                        r[idx_d] = prop
@@ -150,8 +157,9 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
         end
 
         # Update residuals
-        H = Q - V * [Γ'; Δ]
-        y_tilde = y - H * inv(Σ_xx) * Σ_yx
+        q_y, Q_x = (Q[:, 1], Q[:, 2:end])
+        H = Q_x - V * [Γ'; Δ]
+        y_tilde = q_y - H * inv(Σ_xx) * Σ_yx
 
         # Step 1: Outcome model
         # Update model
@@ -184,8 +192,8 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
         α, τ, β = post_sample_outcome(y_tilde, X, U, σ_y_x, g_L)
 
         # Update residuals
-        ϵ = y - U * [α; τ; β]
-        Q_tilde = Q - (1/σ_y_x) * ϵ * Σ_yx' * inv(B)'
+        ϵ = q_y - U * [α; τ; β]
+        X_tilde = Q_x - (1/σ_y_x) * ϵ * Σ_yx' * inv(B)'
 
         # Step 2: Treatment model
 
@@ -199,8 +207,8 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
             G = G_prop = g_M
         end
         acc = min(1, exp(
-            marginal_likelihood_treatment(Q_tilde, B, V_prop, Σ_xx, G_prop) + model_prior(prop, k+p, 1, m[2]) -
-            (marginal_likelihood_treatment(Q_tilde, B, V, Σ_xx, G) + model_prior(M, k+p, 1, m[2]))
+            marginal_likelihood_treatment(X_tilde, B, V_prop, Σ_xx, G_prop) + model_prior(prop, k+p, 1, m[2]) -
+            (marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, G) + model_prior(M, k+p, 1, m[2]))
         ))
         if rand() < acc
             M, V = (prop, V_prop)
@@ -211,8 +219,8 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
             prop = exp.(rand(MvNormal(log.(g_M), [proposal_variance_g_M 0; 0 proposal_variance_g_M])))
             G, G_prop = (G_constr(g_M, M, p, k), G_constr(prop, M, p, k))
             acc = min(1, exp(
-                marginal_likelihood_treatment(Q_tilde, B, V, Σ_xx, G_prop) + log(hyper_g_n(prop[1]; a = 3, n = n)) + log(hyper_g_n(prop[2]; a = 4, n = n)) + sum(log.(prop)) -
-                (marginal_likelihood_treatment(Q_tilde, B, V, Σ_xx, G) + log(hyper_g_n(g_M[1]; a = 3, n = n)) + log(hyper_g_n(g_M[2]; a = 4, n = n)) + sum(log.(g_M)))
+                marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, G_prop) + log(hyper_g_n(prop[1]; a = 3, n = n)) + log(hyper_g_n(prop[2]; a = 4, n = n)) + sum(log.(prop)) -
+                (marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, G) + log(hyper_g_n(g_M[1]; a = 3, n = n)) + log(hyper_g_n(g_M[2]; a = 4, n = n)) + sum(log.(g_M)))
             ))
             if rand() < acc
                 g_M = prop
@@ -221,8 +229,8 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
         elseif random_g
             prop = rand(LogNormal(log(g_M), sqrt(proposal_variance_g_M)))
             acc = min(1, exp(
-                marginal_likelihood_treatment(Q_tilde, B, V, Σ_xx, prop) + log(hyper_g_n(prop; a = 3, n = n)) + log(prop) -
-                (marginal_likelihood_treatment(Q_tilde, B, V, Σ_xx, g_M) + log(hyper_g_n(g_M; a = 3, n = n)) + log(g_M))
+                marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, prop) + log(hyper_g_n(prop; a = 3, n = n)) + log(prop) -
+                (marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g_M) + log(hyper_g_n(g_M; a = 3, n = n)) + log(g_M))
             ))
             if rand() < acc
                 g_M = prop
@@ -236,10 +244,10 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
         else
             G = g_M
         end
-        Γ, Δ = post_sample_treatment(Q_tilde, B, V, Σ_xx, G)
+        Γ, Δ = post_sample_treatment(X_tilde, B, V, Σ_xx, G)
 
         # Update residuals
-        H = Q - V * [Γ'; Δ]
+        H = Q_x - V * [Γ'; Δ]
 
         # Step 3.1: Update covariance
         Σ = post_sample_cov(ϵ, H, ν)

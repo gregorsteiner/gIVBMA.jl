@@ -8,15 +8,19 @@ logit(x) = exp(x) / (1+exp(x))
 """
     Barker proposal, see Zens & Steel (2024) and Livingstone & Zanella (2022)
 """
-function gradient(y, X, Q, Mean_y, Mean_Q, σ_y_x, Σ_yx, Σ_xx, dist, idx_d, r)
-    H = Q - Mean_Q
-    cov_ratio = Σ_yx[idx_d] / Σ_xx[idx_d, idx_d]
+function gradient(y, X, q_y, Q_x, Mean_q_y, Mean_Q_x, σ_y_x, Σ_yx, Σ_xx, dist, idx_d, r)
+    ϵ, H = (q_y - Mean_q_y, Q_x - Mean_Q_x)
 
-    grad = cov_ratio / σ_y_x * (y - (Mean_y + H * inv(Σ_xx) * Σ_yx)) - H[:, idx_d]  * tr(inv(Σ_xx))
+    if idx_d == 1
+        grad = -(ϵ - H * inv(Σ_xx) * Σ_yx) / σ_y_x
+    else
+        grad = (inv(Σ_xx) * Σ_yx)[idx_d-1] / σ_y_x * (ϵ - H * inv(Σ_xx) * Σ_yx) - (inv(Σ_xx) * Q_x')[idx_d-1, :]
+    end
+
     if dist == "PLN"
-        grad .+= X[:, idx_d] - exp.(Q[:, idx_d])
+        grad .+= [y X][:, idx_d] - exp.([q_y Q_x][:, idx_d])
     elseif dist == "BL"
-        grad .+= r * exp.(Q[:, idx_d]) ./ (1 .+ exp.(Q[:, idx_d])).^2 .* log.(X[:, idx_d] ./ (1 .- X[:, idx_d]))
+        grad .+= r * exp.([q_y Q_x][:, idx_d]) ./ (1 .+ exp.([q_y Q_x][:, idx_d])).^2 .* log.([y X][:, idx_d] ./ (1 .- [y X][:, idx_d]))
     end
     return grad
 end
@@ -31,19 +35,19 @@ function barker_proposal(q, gradient, proposal_variance)
     return q_prop
 end
 
-function posterior_q(y, X, Q, Mean_y, Mean_Q, σ_y_x, Σ_yx, Σ_xx, dist, idx_d, r)
+function posterior_q(y, X, q_y, Q_x, Mean_q_y, Mean_Q_x, σ_y_x, Σ_yx, Σ_xx, dist, idx_d, r)
     post = [(
-            logpdf(Normal(Mean_y[j] + ((Q - Mean_Q) * inv(Σ_xx) * Σ_yx)[j], sqrt(σ_y_x)), y[j])
-            + logpdf(MvNormal(Mean_Q[j,:], Σ_xx), Q[j,:])
+            logpdf(Normal(Mean_q_y[j] + ((Q_x - Mean_Q_x) * inv(Σ_xx) * Σ_yx)[j], sqrt(σ_y_x)), q_y[j])
+            + logpdf(MvNormal(Mean_Q_x[j,:], Σ_xx), Q_x[j,:])
         ) for j in eachindex(y)]
 
     if dist == "PLN"
-        post .+= [logpdf(Poisson(exp(Q[j, idx_d])), X[j, idx_d]) for j in eachindex(y)]
+        post .+= [logpdf(Poisson(exp([q_y Q_x][j, idx_d])), [y X][j, idx_d]) for j in eachindex(y)]
     elseif dist == "BL"
-        μ = logit.(Q[:, idx_d])
+        μ = logit.([q_y Q_x][:, idx_d])
         B_α = μ * r
         B_β = r * (1 .- μ)
-        post .+= [logpdf(Beta(B_α[j], B_β[j]), X[j, idx_d]) for j in eachindex(y)]
+        post .+= [logpdf(Beta(B_α[j], B_β[j]), [y X][j, idx_d]) for j in eachindex(y)]
     end
     
     return post
