@@ -2,7 +2,6 @@ module IVBMA
 
 using LinearAlgebra, Distributions, Statistics, Random
 using InvertedIndices, SpecialFunctions
-using Infiltrator
 
 export ivbma, lps
 
