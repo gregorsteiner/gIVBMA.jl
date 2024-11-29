@@ -3,13 +3,14 @@ module IVBMA
 using LinearAlgebra, Distributions, Statistics, Random
 using InvertedIndices, SpecialFunctions
 
-export ivbma, lps
+export ivbma, lps, rbw_posterior_mean
 
 include("priors.jl")
 include("posterior_ml.jl")
 include("non_gaussian.jl")
 include("mcmc.jl")
 include("lps.jl")
+include("rao_blackwell.jl")
 
 
 """
