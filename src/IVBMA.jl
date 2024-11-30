@@ -3,7 +3,7 @@ module IVBMA
 using LinearAlgebra, Distributions, Statistics, Random
 using InvertedIndices, SpecialFunctions
 
-export ivbma, lps, rbw_posterior_mean
+export ivbma, lps, rbw
 
 include("priors.jl")
 include("posterior_ml.jl")

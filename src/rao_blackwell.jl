@@ -2,12 +2,15 @@
 """
     This file adds functions to rao-blackwellise point estimates from the posterior sample.
 """
-function rbw_posterior_mean(sample)
+function rbw(sample; ci = 0.95)
     n, l = size(sample.X)
     Z_c, W_c = (sample.Z .- mean(sample.Z; dims = 1), sample.W .- mean(sample.W; dims = 1))
     V = [ones(n) Z_c W_c]
+
+    alpha = 1 - ci
     
-    tau_store = Matrix(undef, length(sample.α), l)
+    means_tau = Matrix(undef, length(sample.α), l)
+    vars_tau = Matrix(undef, length(sample.α), l)
 
     for i in eachindex(sample.α)
         (σ_y_x, Σ_yx, Σ_xx) = variances(sample.Σ[i])
@@ -18,10 +21,20 @@ function rbw_posterior_mean(sample)
         sf = sample.G[i, 1] / (1 + sample.G[i, 1])
 
         rho_mean = sf * inv(U'U) * U' * y_tilde
-        tau_store[i, :] =  rho_mean[2:(l+1)]
+        rho_cov = sf * σ_y_x * inv(U'U)
+        
+        means_tau[i, :] = rho_mean[2:(l+1)]
+        vars_tau[i, :] = Diagonal(rho_cov)[2:(l+1)]
     end
 
-    return mean(tau_store; dims = 1)[1, :]
+    tau, lower, upper = (Vector(undef, l), Vector(undef, l), Vector(undef, l))
+    for j in 1:l
+        d = MixtureModel(map((μ, σ) -> Normal(μ, sqrt(σ)), means_tau[:, j], vars_tau[:, j]))
+        tau[j] = mean(d)
+        lower[j], upper[j] =  map(Base.Fix1(quantile, d), [alpha/2, 1 - alpha/2])
+    end
+
+    return (mean = tau, ci = [lower upper])
 end
 
 
