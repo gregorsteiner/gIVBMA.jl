@@ -34,8 +34,8 @@ Z = Matrix(df[:, needed_columns[Not(1:3)]])
     res_hyperg = ivbma(y, X, Z; g_prior = "hyper-g/n")
     res_BL = ivbma(y, X, Z; dist = ["Gaussian", "Gaussian", "BL"])
     
-    @test isapprox(rbw(res).mean, expected_taus; atol = 0.2)
-    @test isapprox(rbw(res_hyperg).mean, expected_taus; atol = 0.2)
-    @test isapprox(rbw(res_BL).mean, expected_taus; atol = 0.2)
+    @test isapprox(map(mean, rbw(res)), expected_taus; atol = 0.2)
+    @test isapprox(map(mean, rbw(res_hyperg)), expected_taus; atol = 0.2)
+    @test isapprox(map(mean, rbw(res_BL)), expected_taus; atol = 0.2)
 end
 
