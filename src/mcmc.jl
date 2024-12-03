@@ -290,6 +290,7 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
         X = X,
         Z = Z,
         W = W,
+        dist = dist,
         α = α_samples,
         τ = τ_samples,
         β = β_samples,
