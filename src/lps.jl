@@ -62,7 +62,7 @@ function lps(ivbma, y_h, X_h, Z_h)
     scores = Matrix{Float64}(undef, n_h, n_post)
 
     # demean holdout sample using the mean over the training sample
-    Z_h = Z_h .- mean(ivbma.Z; dims = 1)
+    Z_h = Z_h .- mean(ivbma.W; dims = 1)
 
     for i in 1:n_post
         σ_y_x, Σ_yx, Σ_xx = variances(ivbma.Σ[i])
