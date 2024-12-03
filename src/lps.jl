@@ -42,7 +42,7 @@ function lps(ivbma, y_h, X_h, Z_h, W_h)
         elseif ivbma.dist[1] == "BL"
             μ, r = (logit.(q_y), ivbma.r[i, 1])
             B_α, B_β = (μ * r, r * (1 .- μ))
-            post .+= [pdf(Beta(B_α[j], B_β[j]), y_h[j]) for j in eachindex(y_h)]
+            scores[:, i] .+= [pdf(Beta(B_α[j], B_β[j]), y_h[j]) for j in eachindex(y_h)]
         end
     end
 
@@ -90,7 +90,7 @@ function lps(ivbma, y_h, X_h, Z_h)
         elseif ivbma.dist[1] == "BL"
             μ, r = (logit.(q_y), ivbma.r[i, 1])
             B_α, B_β = (μ * r, r * (1 .- μ))
-            post .+= [pdf(Beta(B_α[j], B_β[j]), y_h[j]) for j in eachindex(y_h)]
+            scores[:, i] .+= [pdf(Beta(B_α[j], B_β[j]), y_h[j]) for j in eachindex(y_h)]
         end
     end
 
