@@ -258,8 +258,8 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
             prop = rand(proposal_distribution)
 
             acc = min(1, exp(
-                logpdf(InverseWishart(prop, Matrix(1.0I, l+1, l+1)), Σ) + jp_ν(prop, p_ν) - logpdf(proposal_distribution, prop) -
-                (logpdf(InverseWishart(ν, Matrix(1.0I, l+1, l+1)), Σ) + jp_ν(ν, p_ν) - logpdf(truncated(Normal(prop, sqrt(proposal_variance_ν)), l, Inf), ν))
+                logpdf(InverseWishart(prop, Matrix(1.0I, l+1, l+1)), Σ) + logpdf(Exponential(0.1), prop - (l+1)) - logpdf(proposal_distribution, prop) -
+                (logpdf(InverseWishart(ν, Matrix(1.0I, l+1, l+1)), Σ) + logpdf(Exponential(0.1), ν - (l+1)) - logpdf(truncated(Normal(prop, sqrt(proposal_variance_ν)), l, Inf), ν))
             ))
             if rand() < acc
                 ν = prop
