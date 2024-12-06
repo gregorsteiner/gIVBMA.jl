@@ -67,7 +67,9 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
     random_ν = isnothing(ν)
     if random_ν   
         ν = l + 2
-        p_ν = size(Z, 2) + size(W, 2) + 3
+        # Note that the prior must be shifted by at least l, better l+1 (we simply subtract from the argument when evaluatng the prior).
+        # We hardcode this for now, letting the user specify it is tricky because of the shifting. But we might change this in the future.
+        prior_ν = Exponential(1) 
         proposal_variance_ν = 0.01
     end
 
@@ -254,12 +256,12 @@ function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_pr
 
         # Step 3.2: Update ν
         if random_ν
-            proposal_distribution = truncated(Normal(ν, sqrt(proposal_variance_ν)), l, Inf)
+            proposal_distribution = truncated(Normal(ν, sqrt(proposal_variance_ν)), l + 1e-16, Inf)
             prop = rand(proposal_distribution)
 
             acc = min(1, exp(
-                logpdf(InverseWishart(prop, Matrix(1.0I, l+1, l+1)), Σ) + logpdf(Exponential(0.1), prop - (l+1)) - logpdf(proposal_distribution, prop) -
-                (logpdf(InverseWishart(ν, Matrix(1.0I, l+1, l+1)), Σ) + logpdf(Exponential(0.1), ν - (l+1)) - logpdf(truncated(Normal(prop, sqrt(proposal_variance_ν)), l, Inf), ν))
+                logpdf(InverseWishart(prop, Matrix(1.0I, l+1, l+1)), Σ) + logpdf(prior_ν, prop - (l+1)) - logpdf(proposal_distribution, prop) -
+                (logpdf(InverseWishart(ν, Matrix(1.0I, l+1, l+1)), Σ) + logpdf(prior_ν, ν - (l+1)) - logpdf(truncated(Normal(prop, sqrt(proposal_variance_ν)), l + 1e-16, Inf), ν))
             ))
             if rand() < acc
                 ν = prop
