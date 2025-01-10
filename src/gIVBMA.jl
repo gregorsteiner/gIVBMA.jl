@@ -3,7 +3,7 @@ module IVBMA
 using LinearAlgebra, Distributions, Statistics, Random
 using InvertedIndices, SpecialFunctions
 
-export ivbma, lps, rbw
+export givbma, lps, rbw
 
 include("priors.jl")
 include("posterior_ml.jl")
@@ -34,7 +34,7 @@ include("rao_blackwell.jl")
     - `m::Union{AbstractVector, Nothing} = nothing` the prior mean model size (defaults to k/2 where k is the number of covariates)
     - `r_prior::Distribution = Exponential(1)` the prior on the dispersion parameter r (only relevant for Beta-Logistic model)
 """
-function ivbma(
+function givbma(
     y::AbstractVector{<:Real},
     X::AbstractVecOrMat{<:Real},
     Z::AbstractMatrix{<:Real},
@@ -60,12 +60,12 @@ function ivbma(
         m = [k/2, (k+p)/2]
     end
 
-    res = ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_prior)
+    res = givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_prior)
 
     return res
 end
 
-function ivbma(
+function givbma(
     y::AbstractVector{<:Real},
     X::AbstractVecOrMat{<:Real},
     Z::AbstractMatrix{<:Real};
@@ -90,7 +90,7 @@ function ivbma(
         m = [p/2, p/2]
     end
 
-    res = ivbma_mcmc(y, X, Matrix{Float64}(undef, n, 0), Z, dist, two_comp, iter, burn, ν, m, g_prior, r_prior)
+    res = givbma_mcmc(y, X, Matrix{Float64}(undef, n, 0), Z, dist, two_comp, iter, burn, ν, m, g_prior, r_prior)
 
     return res
 end
