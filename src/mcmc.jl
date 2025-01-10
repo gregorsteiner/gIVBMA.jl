@@ -23,7 +23,7 @@ end
 """
     The main MCMC function that returns posterior samples.
 """
-function ivbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_prior)
+function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_prior)
     # dimensions
     n, l = size(X)
     p = size(Z, 2); k = size(W, 2)

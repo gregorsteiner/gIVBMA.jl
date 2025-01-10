@@ -30,9 +30,9 @@ Z = Matrix(df[:, needed_columns[Not(1:3)]])
 @testset "CG" begin
     expected_taus = [0.8, -1.0]
 
-    res = ivbma(y, X, Z)
-    res_hyperg = ivbma(y, X, Z; g_prior = "hyper-g/n")
-    res_BL = ivbma(y, X, Z; dist = ["Gaussian", "Gaussian", "BL"])
+    res = givbma(y, X, Z)
+    res_hyperg = givbma(y, X, Z; g_prior = "hyper-g/n")
+    res_BL = givbma(y, X, Z; dist = ["Gaussian", "Gaussian", "BL"])
     
     @test isapprox(map(mean, rbw(res)), expected_taus; atol = 0.2)
     @test isapprox(map(mean, rbw(res_hyperg)), expected_taus; atol = 0.2)
