@@ -1,6 +1,6 @@
 
 
-using IVBMA
+using gIVBMA
 using Test
 
 
