@@ -3,7 +3,7 @@ module gIVBMA
 using LinearAlgebra, Distributions, Statistics, Random
 using InvertedIndices, SpecialFunctions
 
-export givbma, lps, rbw
+export givbma, lps, rbw, posterior_predictive
 
 include("priors.jl")
 include("posterior_ml.jl")
