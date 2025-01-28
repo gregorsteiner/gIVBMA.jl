@@ -1,5 +1,28 @@
 
 
+"""
+    Define object to store the result in.
+"""
+struct GIVBMA
+    y
+    X
+    Z
+    W
+    dist
+    α
+    τ
+    β
+    Γ
+    Δ
+    Σ
+    L
+    M
+    G
+    Q
+    r
+    ν
+end
+
 
 """
     Propose a new model by permuting one inclusion index (MC3)
@@ -51,7 +74,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
     Γ, Δ = (zeros(l), zeros(k+p, l)[M, :])
     Σ = Diagonal(ones(l+1))
     
-    g_L, g_M = (max(n, (k+1)^2), max(n, (k+p+1)^2))
+    g_L, g_M = (max(n, (k+l+1)^2), max(n, (k+p+1)^2))
     if random_g
         proposal_variance_g_L, proposal_variance_g_M = (0.01, 0.01)
     end
@@ -287,24 +310,24 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
 
     end
 
-    return (
-        y = y,
-        X = X,
-        Z = Z,
-        W = W,
-        dist = dist,
-        α = α_samples,
-        τ = τ_samples,
-        β = β_samples,
-        Γ = Γ_samples,
-        Δ = Δ_samples,
-        Σ = Σ_samples,
-        L = L_samples,
-        M = M_samples,
-        G = G_samples,
-        Q = Q_samples,
-        r = r_samples,
-        ν = ν_samples
+    return GIVBMA(
+        y,
+        X,
+        Z,
+        W,
+        dist,
+        α_samples,
+        τ_samples,
+        β_samples,
+        Γ_samples,
+        Δ_samples,
+        Σ_samples,
+        L_samples,
+        M_samples,
+        G_samples,
+        Q_samples,
+        r_samples,
+        ν_samples
     )
 
 end

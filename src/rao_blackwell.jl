@@ -2,7 +2,7 @@
 """
     Rao-blackwellise the marginal posterior of τ.
 """
-function rbw(sample)
+function rbw(sample::GIVBMA)
     n, l = size(sample.X)
     Z_c, W_c = (sample.Z .- mean(sample.Z; dims = 1), sample.W .- mean(sample.W; dims = 1))
     V = [ones(n) Z_c W_c]
