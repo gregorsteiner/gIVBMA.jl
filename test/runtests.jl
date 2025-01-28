@@ -36,6 +36,7 @@ Z = Matrix(df[:, needed_columns[Not(1:3)]])
 
     post_pred = posterior_predictive(res_BL, X[1, :], Z[1, :])
     res_lps = lps(res_BL, y, X, Z)
+    res_rbw = rbw(res_BL)
     
     @test isapprox(map(mean, rbw(res)), expected_taus; atol = 0.2)
     @test isapprox(map(mean, rbw(res_hyperg)), expected_taus; atol = 0.2)

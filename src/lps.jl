@@ -2,7 +2,7 @@
 """
     Compute the log-predictive score on a holdout dataset.
 """
-function lps(ivbma, y_h, X_h, Z_h, W_h)
+function lps(ivbma::GIVBMA, y_h, X_h, Z_h, W_h)
     # if X is a vector turn it into an nx1 matrix
     if ndims(X_h) == 1
         X_h = permutedims(X_h)'
@@ -51,7 +51,7 @@ function lps(ivbma, y_h, X_h, Z_h, W_h)
     return lps
 end
 
-function lps(ivbma, y_h, X_h, Z_h)
+function lps(ivbma::GIVBMA, y_h, X_h, Z_h)
     # if X is a vector turn it into an nx1 matrix
     if ndims(X_h) == 1
         X_h = permutedims(X_h)'
@@ -103,7 +103,7 @@ end
     Return the posterior predictive distribution for a single observation.
 """
 
-function posterior_predictive(ivbma, x_h, z_h, w_h)
+function posterior_predictive(ivbma::GIVBMA, x_h, z_h, w_h)
     n_post = length(ivbma.α)
     
     # demean holdout sample using the mean over the training sample
@@ -145,7 +145,7 @@ function posterior_predictive(ivbma, x_h, z_h, w_h)
     return d
 end
 
-function posterior_predictive(ivbma, x_h, z_h)
+function posterior_predictive(ivbma::GIVBMA, x_h, z_h)
     n_post = length(ivbma.α)
     
     # demean holdout sample using the mean over the training sample
