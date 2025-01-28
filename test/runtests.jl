@@ -41,5 +41,6 @@ Z = Matrix(df[:, needed_columns[Not(1:3)]])
     @test isapprox(map(mean, rbw(res)), expected_taus; atol = 0.2)
     @test isapprox(map(mean, rbw(res_hyperg)), expected_taus; atol = 0.2)
     @test isapprox(map(mean, rbw(res_BL)), expected_taus; atol = 0.2)
+    @test isapprox(res_lps, 0.545; atol = 0.1)
 end
 
