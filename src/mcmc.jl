@@ -21,6 +21,7 @@ struct GIVBMA
     Q
     r
     ν
+    ML
 end
 
 
@@ -118,6 +119,8 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
     r_samples = zeros(nsave, l + 1)
     ν_samples = zeros(nsave)
 
+    ML_store = zeros(nsave) # store outcome marginal likelihood
+
     # Some precomputations
     ι = ones(n)
     U = [ι X W_c[:, L]]
@@ -190,25 +193,26 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
         # Update model
         prop = mc3_proposal(L)
         U_prop = [ι X W_c[:, prop]]
-        
+        ML_outcome, ML_outcome_prop  = (marginal_likelihood_outcome(y_tilde, U, σ_y_x, g_L), marginal_likelihood_outcome(y_tilde, U_prop, σ_y_x, g_L))
         acc = min(1, exp(
-            marginal_likelihood_outcome(y_tilde, U_prop, σ_y_x, g_L) + model_prior(prop, k, 1, m[1]) - 
-            (marginal_likelihood_outcome(y_tilde, U, σ_y_x, g_L) + model_prior(L, k, 1, m[1]))
+            ML_outcome_prop + model_prior(prop, k, 1, m[1]) - 
+            (ML_outcome + model_prior(L, k, 1, m[1]))
         ))
         if rand() < acc
-            L, U = (prop, U_prop)
+            L, U, ML_outcome = (prop, U_prop, ML_outcome_prop)
         end
 
         # Update g_L
         if random_g
             prop = rand(LogNormal(log(g_L), sqrt(proposal_variance_g_L)))
 
+            ML_outcome_prop = marginal_likelihood_outcome(y_tilde, U, σ_y_x, prop)
             acc = min(1, exp(
-                marginal_likelihood_outcome(y_tilde, U, σ_y_x, prop) + log(hyper_g_n(prop; a = 3, n = n)) + log(prop) - 
-                (marginal_likelihood_outcome(y_tilde, U, σ_y_x, g_L) + log(hyper_g_n(g_L; a = 3, n = n)) + log(g_L))
+                ML_outcome_prop + log(hyper_g_n(prop; a = 3, n = n)) + log(prop) - 
+                (ML_outcome + log(hyper_g_n(g_L; a = 3, n = n)) + log(g_L))
             ))
             if rand() < acc
-                g_L = prop
+                g_L, ML_outcome = (prop, ML_outcome_prop)
             end
             proposal_variance_g_L = adjust_variance(proposal_variance_g_L, acc, 0.234, i)
         end
@@ -306,6 +310,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
             Q_samples[i - burn, :, :] = Q
             r_samples[i - burn, :] = r
             ν_samples[i - burn] = ν
+            ML_store[i - burn] = ML_outcome
         end
 
     end
@@ -327,7 +332,8 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
         G_samples,
         Q_samples,
         r_samples,
-        ν_samples
+        ν_samples,
+        ML_store
     )
 
 end

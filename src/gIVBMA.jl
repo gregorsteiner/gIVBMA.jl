@@ -3,7 +3,7 @@ module gIVBMA
 using LinearAlgebra, Distributions, Statistics, Random
 using InvertedIndices, SpecialFunctions
 
-export givbma, lps, rbw, posterior_predictive, savage_dickey_ratio
+export givbma, lps, rbw, posterior_predictive
 
 include("priors.jl")
 include("posterior_ml.jl")
@@ -11,7 +11,6 @@ include("non_gaussian.jl")
 include("mcmc.jl")
 include("lps.jl")
 include("rao_blackwell.jl")
-include("savage_dickey.jl")
 
 
 """
