@@ -71,7 +71,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
     L = sample([true, false], k, replace = true)
     M = sample([true, false], k+p, replace = true)
 
-    α, τ, β = (0, zeros(l), zeros(k)[L])
+    α, τ, β = (0.0, zeros(l), zeros(k)[L])
     Γ, Δ = (zeros(l), zeros(k+p, l)[M, :])
     Σ = Diagonal(ones(l+1))
     
@@ -90,7 +90,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
     # ν prior
     random_ν = isnothing(ν)
     if random_ν   
-        ν = l + 2
+        ν = l + 2.0
         # Note that the prior must be shifted by at least l, better l+1 (we simply subtract from the argument when evaluatng the prior).
         # We hardcode this for now, letting the user specify it is tricky because of the shifting. But we might change this in the future.
         prior_ν = Exponential(1) 
@@ -107,16 +107,16 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
     # storage objects
     nsave = iter - burn
     α_samples = zeros(nsave)
-    τ_samples = zeros(nsave, l)
-    β_samples = zeros(nsave, k)
-    Γ_samples = zeros(nsave, l)
-    Δ_samples = zeros(nsave, k + p, l)
+    τ_samples = zeros(l, nsave)
+    β_samples = zeros(k, nsave)
+    Γ_samples = zeros(l, nsave)
+    Δ_samples = zeros(k + p, l, nsave)
     Σ_samples = Array{Matrix{Float64}}(undef, nsave)
-    L_samples = zeros(Bool, nsave, k)
-    M_samples = zeros(Bool, nsave, k + p)
-    G_samples = two_comp ? zeros(nsave, 3) : zeros(nsave, 2)
-    Q_samples = zeros(nsave, n, l + 1)
-    r_samples = zeros(nsave, l + 1)
+    L_samples = zeros(Bool, k, nsave)
+    M_samples = zeros(Bool, k + p, nsave)
+    G_samples = two_comp ? zeros(3, nsave) : zeros(2, nsave)
+    Q_samples = zeros(n, l + 1, nsave)
+    r_samples = zeros(l + 1, nsave)
     ν_samples = zeros(nsave)
 
     ML_store = zeros(nsave) # store outcome marginal likelihood
@@ -299,16 +299,16 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
         # Step 4: Store sampled values after burn in
         if i > burn
             α_samples[i - burn] = α
-            τ_samples[i - burn, :] = τ
-            β_samples[i - burn, L] = β
-            Γ_samples[i - burn, :] = Γ
-            Δ_samples[i - burn, M, :] = Δ
+            τ_samples[:, i - burn] = τ
+            β_samples[L, i - burn] = β
+            Γ_samples[:, i - burn] = Γ
+            Δ_samples[M, :, i - burn] = Δ
             Σ_samples[i - burn] = Σ
-            L_samples[i - burn, :] = L
-            M_samples[i - burn, :] = M
-            G_samples[i - burn, :] = [g_L; g_M]
-            Q_samples[i - burn, :, :] = Q
-            r_samples[i - burn, :] = r
+            L_samples[:, i - burn] = L
+            M_samples[:, i - burn] = M
+            G_samples[:, i - burn] = [g_L; g_M]
+            Q_samples[:, :, i - burn] = Q
+            r_samples[:, i - burn] = r
             ν_samples[i - burn] = ν
             ML_store[i - burn] = ML_outcome
         end
