@@ -71,7 +71,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
     L = sample([true, false], k, replace = true)
     M = sample([true, false], k+p, replace = true)
 
-    α, τ, β = (0, zeros(l), zeros(k)[L])
+    α, τ, β = (0.0, zeros(l), zeros(k)[L])
     Γ, Δ = (zeros(l), zeros(k+p, l)[M, :])
     Σ = Diagonal(ones(l+1))
     
@@ -90,7 +90,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
     # ν prior
     random_ν = isnothing(ν)
     if random_ν   
-        ν = l + 2
+        ν = l + 2.0
         # Note that the prior must be shifted by at least l, better l+1 (we simply subtract from the argument when evaluatng the prior).
         # We hardcode this for now, letting the user specify it is tricky because of the shifting. But we might change this in the future.
         prior_ν = Exponential(1) 
