@@ -6,15 +6,15 @@ Bayesian Model Averaging in instrumental variable models.
 
 ## Usage
 
-The main function is `givbma` which requires an outcome vector `y`, a matrix of endogenous variables `X`, a matrix of potential instruments `Z`, and a matrix of potential covariates `W`:
-```
+The main function is `givbma` which requires an outcome vector `y`, a matrix of endogenous variables `X`, a matrix of potential instruments `Z`, and a matrix of potential (exogenous) covariates `W`:
+```julia
 fit = givbma(y, X, Z, W)
 ```
 will return a `GIVBMA` object containing a posterior sample of the model parameters averaged over the outcome and treatment models, the visited outcome and treatment models, and the input data. Alternatively, one can only specify a matrix `Z` of potential instruments and covariates:
-```
+```julia
 fit = givbma(y, X, Z)
 ```
-allows all columns of `Z` to be included in the outcome and treatment model. The optional keyword arguments are:
+which allows all columns of `Z` to be included in the outcome and treatment model. The optional keyword arguments are:
 * `iter`: the number of iterations.
 * `burn`: the number of iterations discarded as burn-in; the function returns `iter-burn` posterior samples.
 * `dist`: a vector of distributions of the outcome and the endogenous variables (defaults to Gaussian). Currently, we support `"Gaussian"`, `"PLN"` (Poisson-Log-Normal), and `"BL"` (Beta-Logistic).
@@ -24,5 +24,8 @@ allows all columns of `Z` to be included in the outcome and treatment model. The
 * `m`: the prior mean model size. If not specified, it defaults to `k/2` in the outcome model and `(k+p)/2` in the treatment model, where `k` is the number of exogenous covariates and `p` is the number of instruments.
 * `r_prior`: a `Distribution` object specifying the prior on additional parameters for any non-Gaussian distributions involved. Currently, this only includes the dispersion parameter of the Beta-Logistic distribution (which defaults to an Exponential with scale 1).
 
-
-
+A useful function is `rbw`:
+```julia
+rbw(fit)
+```
+which returns a vector of `Distribution` objects containing Rao-Blackwellized estimates of the marginal posterior distributions of each component of the treatment effect vector. This can be used to extract summary statistics or plot the marginal posterior distribution.
