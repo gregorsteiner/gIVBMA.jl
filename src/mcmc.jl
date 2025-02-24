@@ -73,7 +73,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
 
     α, τ, β = (0.0, zeros(l), zeros(k)[L])
     Γ, Δ = (zeros(l), zeros(k+p, l)[M, :])
-    Σ = Diagonal(ones(l+1))
+    Σ = Matrix(1.0*I, l+1, l+1)
     
     g_L, g_M = (max(n, (k+l+1)^2), max(n, (k+p+1)^2))
     if random_g
