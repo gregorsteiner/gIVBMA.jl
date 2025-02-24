@@ -17,7 +17,7 @@ function lps(ivbma::GIVBMA, y_h, X_h, Z_h, W_h)
     W_h = W_h .- mean(ivbma.W; dims = 1)
 
     for i in 1:n_post
-        σ_y_x, Σ_yx, Σ_xx = variances(ivbma.Σ[i])
+        σ_y_x, Σ_yx, Σ_xx = variances(ivbma.Σ[:, :, i])
 
         # Draw latent Q_x
         Mean_Q_x = (ones(n_h) * ivbma.Γ[:, i:i]' + [Z_h W_h] * ivbma.Δ[:, :, i])
@@ -65,7 +65,7 @@ function lps(ivbma::GIVBMA, y_h, X_h, Z_h)
     Z_h = Z_h .- mean(ivbma.W; dims = 1)
 
     for i in 1:n_post
-        σ_y_x, Σ_yx, Σ_xx = variances(ivbma.Σ[i])
+        σ_y_x, Σ_yx, Σ_xx = variances(ivbma.Σ[:, :, i])
 
         # Draw latent Q_x
         Mean_Q_x = (ones(n_h) * ivbma.Γ[:, i:i]' + Z_h * ivbma.Δ[:, :, i])
