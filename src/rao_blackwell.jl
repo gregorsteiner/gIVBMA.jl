@@ -11,7 +11,7 @@ function rbw(sample::GIVBMA)
     vars_tau = Matrix(undef, l, length(sample.α))
 
     for i in eachindex(sample.α)
-        (σ_y_x, Σ_yx, Σ_xx) = variances(sample.Σ[i])
+        (σ_y_x, Σ_yx, Σ_xx) = variances(sample.Σ[:, :, i])
         H = sample.Q[:, 2:end, i] - V * [(sample.Γ[:, i])'; sample.Δ[:, :, i]]
         y_tilde = sample.Q[:, 1, i] - H * inv(Σ_xx) * Σ_yx
 

@@ -4,24 +4,24 @@
     Define object to store the result in.
 """
 struct GIVBMA
-    y
-    X
-    Z
-    W
-    dist
-    α
-    τ
-    β
-    Γ
-    Δ
-    Σ
-    L
-    M
-    G
-    Q
-    r
-    ν
-    ML
+    y::AbstractVector{<:Real}
+    X::AbstractVecOrMat{<:Real}
+    Z::AbstractMatrix{<:Real}
+    W::AbstractMatrix{<:Real}
+    dist::Vector{String}
+    α::Vector{Float64}
+    τ::Matrix{Float64}
+    β::Matrix{Float64}
+    Γ::Matrix{Float64}
+    Δ::Array{Float64}
+    Σ::Array{Float64}
+    L::Matrix{Bool}
+    M::Matrix{Bool}
+    G::Matrix{Float64}
+    Q::Array{Float64}
+    r::Matrix{Float64}
+    ν::Vector{Float64}
+    ML::Vector{Float64}
 end
 
 
@@ -73,7 +73,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
 
     α, τ, β = (0.0, zeros(l), zeros(k)[L])
     Γ, Δ = (zeros(l), zeros(k+p, l)[M, :])
-    Σ = Diagonal(ones(l+1))
+    Σ = Matrix(1.0*I, l+1, l+1)
     
     g_L, g_M = (max(n, (k+l+1)^2), max(n, (k+p+1)^2))
     if random_g
@@ -111,7 +111,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
     β_samples = zeros(k, nsave)
     Γ_samples = zeros(l, nsave)
     Δ_samples = zeros(k + p, l, nsave)
-    Σ_samples = Array{Matrix{Float64}}(undef, nsave)
+    Σ_samples = zeros(l + 1, l + 1, nsave)
     L_samples = zeros(Bool, k, nsave)
     M_samples = zeros(Bool, k + p, nsave)
     G_samples = two_comp ? zeros(3, nsave) : zeros(2, nsave)
@@ -303,7 +303,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
             β_samples[L, i - burn] = β
             Γ_samples[:, i - burn] = Γ
             Δ_samples[M, :, i - burn] = Δ
-            Σ_samples[i - burn] = Σ
+            Σ_samples[:, :, i - burn] = Σ
             L_samples[:, i - burn] = L
             M_samples[:, i - burn] = M
             G_samples[:, i - burn] = [g_L; g_M]

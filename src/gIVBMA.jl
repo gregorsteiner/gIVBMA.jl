@@ -2,8 +2,9 @@ module gIVBMA
 
 using LinearAlgebra, Distributions, Statistics, Random
 using InvertedIndices, SpecialFunctions
+using CSV, DataFrames
 
-export givbma, lps, rbw, posterior_predictive
+export givbma, lps, rbw
 
 include("priors.jl")
 include("posterior_ml.jl")
