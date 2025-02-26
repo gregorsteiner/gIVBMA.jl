@@ -1,7 +1,7 @@
 module gIVBMA
 
 using LinearAlgebra, Distributions, Statistics, Random
-using InvertedIndices, SpecialFunctions
+using InvertedIndices, SpecialFunctions, LogExpFunctions
 using CSV, DataFrames
 
 export givbma, lps, rbw

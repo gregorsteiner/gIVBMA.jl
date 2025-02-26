@@ -21,7 +21,8 @@ struct GIVBMA
     Q::Array{Float64}
     r::Matrix{Float64}
     ν::Vector{Float64}
-    ML::Vector{Float64}
+    ML_outcome::Float64
+    ML_treatment::Float64
 end
 
 
@@ -118,8 +119,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
     Q_samples = zeros(n, l + 1, nsave)
     r_samples = zeros(l + 1, nsave)
     ν_samples = zeros(nsave)
-
-    ML_store = zeros(nsave) # store outcome marginal likelihood
+    ML_outcome_store, ML_treatment_store = (zeros(nsave), zeros(nsave))
 
     # Some precomputations
     ι = ones(n)
@@ -235,21 +235,23 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
         else
             G = G_prop = g_M
         end
+        ML_treatment, ML_treatment_prop = (marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, G), marginal_likelihood_treatment(X_tilde, B, V_prop, Σ_xx, G_prop))
         acc = min(1, exp(
-            marginal_likelihood_treatment(X_tilde, B, V_prop, Σ_xx, G_prop) + model_prior(prop, k+p, 1, m[2]) -
-            (marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, G) + model_prior(M, k+p, 1, m[2]))
+            ML_treatment_prop + model_prior(prop, k+p, 1, m[2]) -
+            (ML_treatment + model_prior(M, k+p, 1, m[2]))
         ))
         if rand() < acc
-            M, V = (prop, V_prop)
+            M, V, ML_treatment = (prop, V_prop, ML_treatment_prop)
         end
 
         # Update g_M
         if two_comp 
             prop = exp.(rand(MvNormal(log.(g_M), [proposal_variance_g_M 0; 0 proposal_variance_g_M])))
             G, G_prop = (G_constr(g_M, M, p, k), G_constr(prop, M, p, k))
+            ML_treatment_prop = marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, G_prop)
             acc = min(1, exp(
-                marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, G_prop) + log(hyper_g_n(prop[1]; a = 3, n = n)) + log(hyper_g_n(prop[2]; a = 4, n = n)) + sum(log.(prop)) -
-                (marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, G) + log(hyper_g_n(g_M[1]; a = 3, n = n)) + log(hyper_g_n(g_M[2]; a = 4, n = n)) + sum(log.(g_M)))
+                ML_treatment_prop + log(hyper_g_n(prop[1]; a = 3, n = n)) + log(hyper_g_n(prop[2]; a = 4, n = n)) + sum(log.(prop)) -
+                (ML_treatment + log(hyper_g_n(g_M[1]; a = 3, n = n)) + log(hyper_g_n(g_M[2]; a = 4, n = n)) + sum(log.(g_M)))
             ))
             if rand() < acc
                 g_M = prop
@@ -257,9 +259,10 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
             proposal_variance_g_M = adjust_variance.(proposal_variance_g_M, acc, 0.234, i)
         elseif random_g
             prop = rand(LogNormal(log(g_M), sqrt(proposal_variance_g_M)))
+            ML_treatment_prop = marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, prop)
             acc = min(1, exp(
-                marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, prop) + log(hyper_g_n(prop; a = 3, n = n)) + log(prop) -
-                (marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g_M) + log(hyper_g_n(g_M; a = 3, n = n)) + log(g_M))
+                ML_treatment_prop + log(hyper_g_n(prop; a = 3, n = n)) + log(prop) -
+                (ML_treatment + log(hyper_g_n(g_M; a = 3, n = n)) + log(g_M))
             ))
             if rand() < acc
                 g_M = prop
@@ -310,7 +313,8 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
             Q_samples[:, :, i - burn] = Q
             r_samples[:, i - burn] = r
             ν_samples[i - burn] = ν
-            ML_store[i - burn] = ML_outcome
+            ML_outcome_store[i - burn] = ML_outcome
+            ML_treatment_store[i - burn] = ML_treatment
         end
 
     end
@@ -333,7 +337,8 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
         Q_samples,
         r_samples,
         ν_samples,
-        ML_store
+        exp(logsumexp(ML_outcome_store) - log(nsave)),
+        exp(logsumexp(ML_treatment_store) - log(nsave))
     )
 
 end
