@@ -337,8 +337,8 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
         Q_samples,
         r_samples,
         ν_samples,
-        exp(logsumexp(ML_outcome_store) - log(nsave)),
-        exp(logsumexp(ML_treatment_store) - log(nsave))
+        logsumexp(ML_outcome_store) - log(nsave),
+        logsumexp(ML_treatment_store) - log(nsave)
     )
 
 end
