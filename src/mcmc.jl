@@ -21,8 +21,6 @@ struct GIVBMA
     Q::Array{Float64}
     r::Matrix{Float64}
     ν::Vector{Float64}
-    ML_outcome::Float64
-    ML_treatment::Float64
 end
 
 
@@ -119,7 +117,6 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
     Q_samples = zeros(n, l + 1, nsave)
     r_samples = zeros(l + 1, nsave)
     ν_samples = zeros(nsave)
-    ML_outcome_store, ML_treatment_store = (zeros(nsave), zeros(nsave))
 
     # Some precomputations
     ι = ones(n)
@@ -313,8 +310,6 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
             Q_samples[:, :, i - burn] = Q
             r_samples[:, i - burn] = r
             ν_samples[i - burn] = ν
-            ML_outcome_store[i - burn] = ML_outcome
-            ML_treatment_store[i - burn] = ML_treatment
         end
 
     end
@@ -336,9 +331,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
         G_samples,
         Q_samples,
         r_samples,
-        ν_samples,
-        logsumexp(ML_outcome_store) - log(nsave),
-        logsumexp(ML_treatment_store) - log(nsave)
+        ν_samples
     )
 
 end
