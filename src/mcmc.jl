@@ -55,8 +55,14 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
     Z_c = Z .- mean(Z; dims = 1)
     W_c = W .- mean(W; dims = 1)
 
+    # check ranks
+    if rank([ones(n) X W_c]) < (1+l+k) || rank([ones(n) Z_c W_c]) < (1+k+p)
+        throw(ArgumentError("One of the design matrices does not have full column rank."))
+    end
+
+    # check if the dist vector is correctly specified
     if length(dist) != l+1
-        error("`dist` must have an element for each column of [y : X]")
+        throw(ArgumentError("`dist` must have an element for each column of [y : X]."))
     end
 
     # g prior
@@ -64,6 +70,8 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
         random_g = false
     elseif g_prior == "hyper-g/n"
         random_g = true
+    else
+        throw(ArgumentError("`g_prior` must be either 'BRIC' or 'hyper-g/n'."))
     end
 
     # starting values
@@ -80,7 +88,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
     end
     if two_comp
         if l > 1
-            error("Using the two-component g-prior with multiple endogenous variables is currently not supported.")
+            throw(ArgumentError("Using the two-component g-prior with multiple endogenous variables is currently not supported."))
         end
         g_M = [n, n^(1/2)]
         proposal_variance_g_M = 0.01
