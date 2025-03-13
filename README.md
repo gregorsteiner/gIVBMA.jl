@@ -14,7 +14,7 @@ will return a `GIVBMA` object containing a posterior sample of the model paramet
 ```julia
 fit = givbma(y, X, Z)
 ```
-which allows all columns of `Z` to be included in the outcome and treatment model. The optional keyword arguments are:
+which allows all columns of `Z` to be included in the outcome and treatment model. Note that an intercept is automatically included and there is no need to include it in either `X`, `W`, or `Z`. The optional keyword arguments are:
 * `iter`: the number of iterations.
 * `burn`: the number of iterations discarded as burn-in; the function returns `iter-burn` posterior samples.
 * `dist`: a vector of distributions of the outcome and the endogenous variables (defaults to Gaussian). Currently, we support `"Gaussian"`, `"PLN"` (Poisson-Log-Normal), and `"BL"` (Beta-Logistic).
@@ -26,6 +26,15 @@ which allows all columns of `Z` to be included in the outcome and treatment mode
 
 A useful function is `rbw`:
 ```julia
-rbw(fit)
+posterior = rbw(fit)
 ```
-which returns a vector of `Distribution` objects containing Rao-Blackwellized estimates of the marginal posterior distributions of each component of the treatment effect vector. This can be used to extract summary statistics or plot the marginal posterior distribution.
+which returns a vector of `Distribution` objects containing Rao-Blackwellized estimates of the marginal posterior distributions of each component of the treatment effect vector. This can be used to extract summary statistics or plot the marginal posterior distribution:
+```julia
+# Extract a vector of posterior means or medians
+map(mean, posterior)
+map(median, posterior)
+
+# Plot the posterior distribution corresponding to the first column of X
+using CairoMakie
+lines(posterior[1])
+```
