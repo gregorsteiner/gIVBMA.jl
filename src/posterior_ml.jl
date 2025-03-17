@@ -19,18 +19,18 @@ calc_B_Σ(σ_y_x, Σ_yx, Σ_xx) = I + Σ_yx * Σ_yx' * inv(Σ_xx) / σ_y_x
     Functions to sample from the conditional posteriors and compute marginal likelihoods.
 """
 function post_sample_outcome(y_tilde, X, U, σ_y_x, g)
-    n = size(X, 1); l = size(X, 2)
-    ι = ones(n)
+    l = size(X, 2)
     sf = g / (g+1)
 
-    ρ = rand(MvNormal(sf * inv(U'U) * U' * y_tilde, Symmetric(σ_y_x * sf * inv(U'U))))
+    U_t_U_inv = inv(U'U)
+    ρ = rand(MvNormal(sf * U_t_U_inv * U' * y_tilde, Symmetric(σ_y_x * sf * U_t_U_inv)))
     α, τ, β = (ρ[1], ρ[2:(l+1)], ρ[(l+2):end])
     
     return (α, τ, β)
 end
 
 function marginal_likelihood_outcome(y_tilde, U, σ_y_x, g)
-    n, k_U = size(U)
+    k_U = size(U, 2)
     P_U = U * inv(U'U) * U'
 
     ml = -(k_U/2) * log(g+1) - (1/(2*σ_y_x)) * y_tilde' * (I - g/(g+1) * P_U) * y_tilde
@@ -39,7 +39,6 @@ end
 
 
 function post_sample_treatment(X_tilde, B, V, Σ_xx, g::Number)
-    n = size(X_tilde, 1)
     V_t_V_inv = inv(V'V)
 
     Λ = rand(MatrixNormal( V_t_V_inv * V'X_tilde * inv(I + 1/g * inv(B))', Symmetric(V_t_V_inv), Symmetric(inv(B + 1/g * I) * Σ_xx)))
@@ -77,7 +76,6 @@ end
 function post_sample_treatment(X_tilde, B, V, Σ_xx, G::AbstractMatrix)
     b = B[1, 1] # must be 1x1 (two-comp prior is only supported in the scalar case)
     A_G = inv(b * V'V + inv(G) * V'V * inv(G))
-    #λ = rand(MvNormal(b * A_G * V' * X_tilde[:, 1], Σ_xx[1,1] * A_G))
     Λ = rand(MatrixNormal(b * A_G * V' * X_tilde,  Symmetric(A_G), Symmetric(Σ_xx)))
     Γ, Δ = (Λ[1, :], Λ[2:end, :])
     
