@@ -11,27 +11,37 @@ function variances(Σ)
     return (σ_y_x, Σ_yx, Σ_xx)
 end
 
-
 calc_B_Σ(σ_y_x, Σ_yx, Σ_xx) = I + Σ_yx * Σ_yx' * inv(Σ_xx) / σ_y_x
 
+function least_squares_and_inverse(X, y)
+    L = cholesky(X'X)    
+    beta = L \ X'y
+    XtX_inv = L \ I
+    return beta, XtX_inv
+end
+
+function projection(X)
+    Q = Matrix(qr(X).Q)
+    return Q * Q'
+end
 
 """
     Functions to sample from the conditional posteriors and compute marginal likelihoods.
 """
 function post_sample_outcome(y_tilde, X, U, σ_y_x, g)
-    n = size(X, 1); l = size(X, 2)
-    ι = ones(n)
+    l = size(X, 2)
     sf = g / (g+1)
 
-    ρ = rand(MvNormal(sf * inv(U'U) * U' * y_tilde, Symmetric(σ_y_x * sf * inv(U'U))))
+    LS, U_t_U_inv = least_squares_and_inverse(U, y_tilde)
+    ρ = rand(MvNormal(sf * LS, Symmetric(σ_y_x * sf * U_t_U_inv)))
     α, τ, β = (ρ[1], ρ[2:(l+1)], ρ[(l+2):end])
     
     return (α, τ, β)
 end
 
 function marginal_likelihood_outcome(y_tilde, U, σ_y_x, g)
-    n, k_U = size(U)
-    P_U = U * inv(U'U) * U'
+    k_U = size(U, 2)
+    P_U = projection(U)
 
     ml = -(k_U/2) * log(g+1) - (1/(2*σ_y_x)) * y_tilde' * (I - g/(g+1) * P_U) * y_tilde
     return ml 
@@ -39,10 +49,9 @@ end
 
 
 function post_sample_treatment(X_tilde, B, V, Σ_xx, g::Number)
-    n = size(X_tilde, 1)
-    V_t_V_inv = inv(V'V)
+    LS, V_t_V_inv = least_squares_and_inverse(V, X_tilde)
 
-    Λ = rand(MatrixNormal( V_t_V_inv * V'X_tilde * inv(I + 1/g * inv(B))', Symmetric(V_t_V_inv), Symmetric(inv(B + 1/g * I) * Σ_xx)))
+    Λ = rand(MatrixNormal( LS * inv(I + 1/g * inv(B))', Symmetric(V_t_V_inv), Symmetric(inv(B + 1/g * I) * Σ_xx)))
     Γ, Δ = (Λ[1, :], Λ[2:end, :])
     
     return (Γ, Δ)
@@ -51,7 +60,7 @@ end
 function marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g::Number)
     n, k_M = size(V)
     l = size(X_tilde, 2)
-    P_V = V * inv(V'V) * V'
+    P_V = projection(V)
 
     C = inv(I + 1/g * inv(B))
     D = (B + 1/g * I)
@@ -77,7 +86,6 @@ end
 function post_sample_treatment(X_tilde, B, V, Σ_xx, G::AbstractMatrix)
     b = B[1, 1] # must be 1x1 (two-comp prior is only supported in the scalar case)
     A_G = inv(b * V'V + inv(G) * V'V * inv(G))
-    #λ = rand(MvNormal(b * A_G * V' * X_tilde[:, 1], Σ_xx[1,1] * A_G))
     Λ = rand(MatrixNormal(b * A_G * V' * X_tilde,  Symmetric(A_G), Symmetric(Σ_xx)))
     Γ, Δ = (Λ[1, :], Λ[2:end, :])
     
