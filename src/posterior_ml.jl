@@ -14,12 +14,15 @@ end
 calc_B_Σ(σ_y_x, Σ_yx, Σ_xx) = I + Σ_yx * Σ_yx' * inv(Σ_xx) / σ_y_x
 
 function least_squares_and_inverse(X, y)
-    L = cholesky(X'X)  # Compute Cholesky decomposition: XtX = LL'
-    
-    beta = L \ X'y  # Solve (X'X)β = X'y using Cholesky factor
-    XtX_inv = L \ I  # Compute (X'X)^(-1) efficiently
-
+    L = cholesky(X'X)    
+    beta = L \ X'y
+    XtX_inv = L \ I
     return beta, XtX_inv
+end
+
+function projection(X)
+    Q = Matrix(qr(X).Q)
+    return Q * Q'
 end
 
 """
@@ -38,7 +41,7 @@ end
 
 function marginal_likelihood_outcome(y_tilde, U, σ_y_x, g)
     k_U = size(U, 2)
-    P_U = U * inv(U'U) * U'
+    P_U = projection(U)
 
     ml = -(k_U/2) * log(g+1) - (1/(2*σ_y_x)) * y_tilde' * (I - g/(g+1) * P_U) * y_tilde
     return ml 
@@ -57,7 +60,7 @@ end
 function marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g::Number)
     n, k_M = size(V)
     l = size(X_tilde, 2)
-    P_V = V * inv(V'V) * V'
+    P_V = projection(V)
 
     C = inv(I + 1/g * inv(B))
     D = (B + 1/g * I)
