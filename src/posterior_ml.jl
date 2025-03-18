@@ -11,9 +11,16 @@ function variances(Σ)
     return (σ_y_x, Σ_yx, Σ_xx)
 end
 
-
 calc_B_Σ(σ_y_x, Σ_yx, Σ_xx) = I + Σ_yx * Σ_yx' * inv(Σ_xx) / σ_y_x
 
+function least_squares_and_inverse(X, y)
+    L = cholesky(X'X)  # Compute Cholesky decomposition: XtX = LL'
+    
+    beta = L \ X'y  # Solve (X'X)β = X'y using Cholesky factor
+    XtX_inv = L \ I  # Compute (X'X)^(-1) efficiently
+
+    return beta, XtX_inv
+end
 
 """
     Functions to sample from the conditional posteriors and compute marginal likelihoods.
@@ -22,8 +29,8 @@ function post_sample_outcome(y_tilde, X, U, σ_y_x, g)
     l = size(X, 2)
     sf = g / (g+1)
 
-    U_t_U_inv = inv(U'U)
-    ρ = rand(MvNormal(sf * U_t_U_inv * U' * y_tilde, Symmetric(σ_y_x * sf * U_t_U_inv)))
+    LS, U_t_U_inv = least_squares_and_inverse(U, y_tilde)
+    ρ = rand(MvNormal(sf * LS, Symmetric(σ_y_x * sf * U_t_U_inv)))
     α, τ, β = (ρ[1], ρ[2:(l+1)], ρ[(l+2):end])
     
     return (α, τ, β)
@@ -39,9 +46,9 @@ end
 
 
 function post_sample_treatment(X_tilde, B, V, Σ_xx, g::Number)
-    V_t_V_inv = inv(V'V)
+    LS, V_t_V_inv = least_squares_and_inverse(V, X_tilde)
 
-    Λ = rand(MatrixNormal( V_t_V_inv * V'X_tilde * inv(I + 1/g * inv(B))', Symmetric(V_t_V_inv), Symmetric(inv(B + 1/g * I) * Σ_xx)))
+    Λ = rand(MatrixNormal( LS * inv(I + 1/g * inv(B))', Symmetric(V_t_V_inv), Symmetric(inv(B + 1/g * I) * Σ_xx)))
     Γ, Δ = (Λ[1, :], Λ[2:end, :])
     
     return (Γ, Δ)
