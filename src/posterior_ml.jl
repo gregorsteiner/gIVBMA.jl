@@ -58,7 +58,7 @@ function post_sample_treatment(X_tilde, B, V, Σ_xx, g::Number)
 end
 
 function marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g::Number)
-    n, k_M = size(V)
+    k_M = size(V, 2)
     l = size(X_tilde, 2)
     P_V = projection(V)
 
@@ -66,7 +66,7 @@ function marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g::Number)
     D = (B + 1/g * I)
     S = - inv(Σ_xx) * D * C * X_tilde' * P_V * X_tilde * C'
 
-    ml = -(l*k_M/2) * log(g) - (n/2) * log(det(B + 1/g * I)) - (1/2) * tr(S)
+    ml = -(l*k_M/2) * log(g) - (k_M/2) * log(det(B + 1/g * I)) - (1/2) * tr(S)
     return ml
 end
 
