@@ -90,8 +90,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
         if l > 1
             throw(ArgumentError("Using the two-component g-prior with multiple endogenous variables is currently not supported."))
         end
-        g_M = [n, n^(1/2)]
-        proposal_variance_g_M = 0.01
+        c = 1/2
     end
 
     # ν prior
@@ -210,7 +209,6 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
         # Update g_L
         if random_g
             prop = rand(LogNormal(log(g_L), sqrt(proposal_variance_g_L)))
-
             ML_outcome_prop = marginal_likelihood_outcome(y_tilde, U, σ_y_x, prop)
             acc = min(1, exp(
                 ML_outcome_prop + log(hyper_g_n(prop; a = 3, n = n)) + log(prop) - 
@@ -236,7 +234,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
         V_prop = [ι [Z_c W_c][:, prop]]
 
         if two_comp
-            G, G_prop = (G_constr(g_M, M, p, k), G_constr(g_M, prop, p, k))
+            G, G_prop = (G_constr([g_M, c*g_M], M, p, k), G_constr([g_M, c*g_M], prop, p, k))
         else
             G = G_prop = g_M
         end
@@ -250,37 +248,21 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
         end
 
         # Update g_M
-        if two_comp 
-            prop = exp.(rand(MvNormal(log.(g_M), [proposal_variance_g_M 0; 0 proposal_variance_g_M])))
-            G, G_prop = (G_constr(g_M, M, p, k), G_constr(prop, M, p, k))
-            ML_treatment_prop = marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, G_prop)
-            acc = min(1, exp(
-                ML_treatment_prop + log(hyper_g_n(prop[1]; a = 3, n = n)) + log(hyper_g_n(prop[2]; a = 4, n = n)) + sum(log.(prop)) -
-                (ML_treatment + log(hyper_g_n(g_M[1]; a = 3, n = n)) + log(hyper_g_n(g_M[2]; a = 4, n = n)) + sum(log.(g_M)))
-            ))
-            if rand() < acc
-                g_M = prop
-            end
-            proposal_variance_g_M = adjust_variance.(proposal_variance_g_M, acc, 0.234, i)
-        elseif random_g
+        if random_g
             prop = rand(LogNormal(log(g_M), sqrt(proposal_variance_g_M)))
-            ML_treatment_prop = marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, prop)
+            ML_treatment_prop = two_comp ? marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, G_constr([prop, c*prop], M, p, k)) : marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, prop)
             acc = min(1, exp(
                 ML_treatment_prop + log(hyper_g_n(prop; a = 3, n = n)) + log(prop) -
                 (ML_treatment + log(hyper_g_n(g_M; a = 3, n = n)) + log(g_M))
             ))
             if rand() < acc
-                g_M = prop
+                g_M, ML_treatment = (prop, ML_treatment_prop)
             end
             proposal_variance_g_M = adjust_variance(proposal_variance_g_M, acc, 0.234, i)
         end
 
         # Update parameters
-        if two_comp
-            G = G_constr(g_M, M, p, k)
-        else
-            G = g_M
-        end
+        G = two_comp ? G_constr([g_M, c*g_M], M, p, k) : g_M
         Γ, Δ = post_sample_treatment(X_tilde, B, V, Σ_xx, G)
 
         # Update residuals
@@ -314,7 +296,7 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
             Σ_samples[:, :, i - burn] = Σ
             L_samples[:, i - burn] = L
             M_samples[:, i - burn] = M
-            G_samples[:, i - burn] = [g_L; g_M]
+            G_samples[:, i - burn] = (two_comp ? [g_L; [g_M, c*g_M]] : [g_L; g_M])
             Q_samples[:, :, i - burn] = Q
             r_samples[:, i - burn] = r
             ν_samples[i - burn] = ν
