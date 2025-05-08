@@ -48,4 +48,4 @@ lines(posterior[1])
 
 ## References
 
-Steiner, G., & Steel, M. (2025). Bayesian Model Averaging in Causal Instrumental Variable Models, arXiv:2504.13520
+Steiner, G. and Steel, M. (2025). Bayesian Model Averaging in Causal Instrumental Variable Models. arXiv:2504.13520
