@@ -70,17 +70,18 @@ function marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g::Number)
     return ml
 end
 
-function post_sample_cov(ϵ, H, ν)
+function post_sample_cov(ϵ, H, ν, σ_y_x, ω_a)
     n, l = size(H)
-    b_a = 1.0
 
-    L = (H'H + (1/b_a) * I)
+    L = (H'H + (σ_y_x/ω_a) * I)
     m, M = L \ H'ϵ, L \ I
     M = (M + M') / 2 # ensure symmetry
-
-    Σ_xx = rand(InverseWishart(ν - 1 + n, I + H'H))
-    σ_y_x = rand(InverseGamma((n + ν)/2, dot(H'ϵ, M, H'ϵ) + 1/2))
     a_yx = rand(MvNormal( m, σ_y_x * M))
+
+    RSS = dot(ϵ - H*a_yx, ϵ - H*a_yx)
+    σ_y_x = rand(InverseGamma((n + ν)/2, (RSS + 1.0)/2))
+    
+    Σ_xx = rand(InverseWishart(n + ν - 1, H'H + I))
 
     Σ = [1.0 a_yx'; zeros(l, 1) I] * [σ_y_x zeros(1, l); zeros(l, 1) Σ_xx] * [1.0 zeros(1, l); a_yx I]
     return Σ
