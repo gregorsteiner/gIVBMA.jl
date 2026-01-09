@@ -6,7 +6,7 @@
         ```
     with a Beta(a, b) hyperprior on `w`. Note that the result is on a log-scale.
 """
-function model_prior(x, k, a = 1, m = floor(k/2))
+function model_prior(x, k, a = 1, m = k/2)
     b = (k - m) / m 
     kj = sum(x)
     
