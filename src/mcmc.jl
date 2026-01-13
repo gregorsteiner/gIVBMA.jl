@@ -46,7 +46,7 @@ end
 """
     The main MCMC function that returns posterior samples.
 """
-function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_prior)
+function givbma_mcmc(y, X, Z, W, iter, burn, dist, two_comp, g_prior, m, cov_prior, ν, ω_a, r_prior)
     # dimensions
     n, l = size(X)
     p = size(Z, 2); k = size(W, 2)
@@ -269,7 +269,11 @@ function givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_p
         H = Q_x - V * [Γ'; Δ]
 
         # Step 3.1: Update covariance
-        Σ = post_sample_cov(ϵ, H, ν)
+        if cov_prior == "IW"
+            Σ = post_sample_cov_iw(ϵ, H, ν)
+        elseif cov_prior == "Cholesky"
+            Σ = post_sample_cov_cholesky(ϵ, H, ν, σ_y_x, ω_a)
+        end
 
         # Step 3.2: Update ν
         if random_ν

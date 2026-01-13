@@ -70,11 +70,28 @@ function marginal_likelihood_treatment(X_tilde, B, V, Σ_xx, g::Number)
     return ml
 end
 
-function post_sample_cov(ϵ, H, ν)
+function post_sample_cov_iw(ϵ, H, ν)
     n = size(ϵ, 1)
     Q = [ϵ H]' * [ϵ H]
 
     Σ = rand(InverseWishart(ν + n, I + Q))
+    return Σ
+end
+
+function post_sample_cov_cholesky(ϵ, H, ν, σ_y_x, ω_a)
+    n, l = size(H)
+
+    L = (H'H + (σ_y_x/ω_a) * I)
+    m, M = L \ H'ϵ, L \ I
+    M = (M + M') / 2 # ensure symmetry
+    a_yx = rand(MvNormal( m, σ_y_x * M))
+
+    RSS = dot(ϵ - H*a_yx, ϵ - H*a_yx)
+    σ_y_x = rand(InverseGamma((n + ν)/2, (RSS + 1.0)/2))
+    
+    Σ_xx = rand(InverseWishart(n + ν - 1, H'H + I))
+
+    Σ = [1.0 a_yx'; zeros(l, 1) I] * [σ_y_x zeros(1, l); zeros(l, 1) Σ_xx] * [1.0 zeros(1, l); a_yx I]
     return Σ
 end
 

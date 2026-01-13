@@ -30,9 +30,11 @@ include("rao_blackwell.jl")
     - `burn::Integer = 1000` the number of initial iteratios to discard as burn-in (should be less than `iter`)
     - `dist::Vector{String} = repeat(["Gaussian"], size(X, 2) + 1)` a vector of strings containing the distributions of the outcome and all endogenous variabes; currently "Gaussian" (default), "PLN" (Poisson-Log-Normal), and "BL" (Beta-Logistic) are implemented
     - `two_comp::Bool = false` a Boolean indicating whether the two-component g-prior should be used for the treatment parameters. This is currently only implemented for a single endogenous variable.
-    - `ν = size(X::AbstractVector{<:Real}, 2) + 2` the covariance degrees of freedom ν
-    - `g_prior = "BRIC"` the prior choice of g; currently "BRIC" (g = max(n, p^2)) and a "hyper-g/n" prior are implemented
+    - `g_prior::String = "BRIC"` the prior choice of g; currently "BRIC" (g = max(n, p^2)) and a "hyper-g/n" prior are implemented
     - `m::Union{AbstractVector, Nothing} = nothing` the prior mean model size (defaults to k/2 or (k+p)/2 where k is the number of covariates and p is the number of instruments)
+    - `cov_prior::String = "IW"` the covariance prior structure; the full inverse Wishart ("IW") and Cholesky-based ("Cholesky") priors are available.
+    - `ν::Union{Nothing, Number} = nothing` the covariance degrees of freedom ν (defualts to shifted Exponential hyperprior)
+    - `ω_a::Number = 1.0` the prior variance on the scaled residual covariance (only relevant for the Cholesky prior)
     - `r_prior::Distribution = Exponential(1)` the prior on the dispersion parameter r (only relevant for Beta-Logistic model)
 """
 function givbma(
@@ -44,9 +46,11 @@ function givbma(
     burn::Integer = 1000,
     dist::Vector{String} = repeat(["Gaussian"], size(X, 2) + 1),
     two_comp::Bool = false,
-    ν::Union{Nothing, Number} = nothing,
     g_prior::String = "BRIC",
     m::Union{AbstractVector, Nothing} = nothing,
+    cov_prior::String = "IW",
+    ν::Union{Nothing, Number} = nothing,
+    ω_a::Number = 1.0,
     r_prior::Distribution = Exponential(1)
 )
     # if X is a vector turn it into an nx1 matrix
@@ -61,7 +65,7 @@ function givbma(
         m = [k/2, (k+p)/2]
     end
 
-    res = givbma_mcmc(y, X, Z, W, dist, two_comp, iter, burn, ν, m, g_prior, r_prior)
+    res = givbma_mcmc(y, X, Z, W, iter, burn, dist, two_comp, g_prior, m, cov_prior, ν, ω_a, r_prior)
 
     return res
 end
@@ -74,9 +78,11 @@ function givbma(
     burn::Integer = 1000,
     dist::Vector{String} = repeat(["Gaussian"], size(X, 2) + 1),
     two_comp = false,
-    ν::Union{Nothing, Number} = nothing,
-    m::Union{AbstractVector, Nothing} = nothing,
     g_prior::String = "BRIC",
+    m::Union{AbstractVector, Nothing} = nothing,
+    cov_prior::String = "IW",
+    ν::Union{Nothing, Number} = nothing,
+    ω_a::Number = 1.0,
     r_prior::Distribution = Exponential(1)
 )
     # if X is a vector turn it into an nx1 matrix
@@ -91,7 +97,7 @@ function givbma(
         m = [p/2, p/2]
     end
 
-    res = givbma_mcmc(y, X, Matrix{Float64}(undef, n, 0), Z, dist, two_comp, iter, burn, ν, m, g_prior, r_prior)
+    res = givbma_mcmc(y, X, Matrix{Float64}(undef, n, 0), Z, iter, burn, dist, two_comp, g_prior, m, cov_prior, ν, ω_a, r_prior)
 
     return res
 end
