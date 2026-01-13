@@ -30,10 +30,10 @@ include("rao_blackwell.jl")
     - `burn::Integer = 1000` the number of initial iteratios to discard as burn-in (should be less than `iter`)
     - `dist::Vector{String} = repeat(["Gaussian"], size(X, 2) + 1)` a vector of strings containing the distributions of the outcome and all endogenous variabes; currently "Gaussian" (default), "PLN" (Poisson-Log-Normal), and "BL" (Beta-Logistic) are implemented
     - `two_comp::Bool = false` a Boolean indicating whether the two-component g-prior should be used for the treatment parameters. This is currently only implemented for a single endogenous variable.
-    - `g_prior = "BRIC"` the prior choice of g; currently "BRIC" (g = max(n, p^2)) and a "hyper-g/n" prior are implemented
+    - `g_prior::String = "BRIC"` the prior choice of g; currently "BRIC" (g = max(n, p^2)) and a "hyper-g/n" prior are implemented
     - `m::Union{AbstractVector, Nothing} = nothing` the prior mean model size (defaults to k/2 or (k+p)/2 where k is the number of covariates and p is the number of instruments)
-    - `cov_prior::String = "IW"` the covariance prior structure; the inverse Wishart ("IW") prior and Cholesky-based ("Cholesky") priors are available
-    - `ν = size(X::AbstractVector{<:Real}, 2) + 2` the covariance degrees of freedom ν
+    - `cov_prior::String = "IW"` the covariance prior structure; the full inverse Wishart ("IW") and Cholesky-based ("Cholesky") priors are available.
+    - `ν::Union{Nothing, Number} = nothing` the covariance degrees of freedom ν (defualts to shifted Exponential hyperprior)
     - `ω_a::Number = 1.0` the prior variance on the scaled residual covariance (only relevant for the Cholesky prior)
     - `r_prior::Distribution = Exponential(1)` the prior on the dispersion parameter r (only relevant for Beta-Logistic model)
 """
