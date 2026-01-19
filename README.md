@@ -27,8 +27,10 @@ which allows all columns of `Z` to be included in the outcome and treatment mode
 * `dist`: a vector of distributions of the outcome and the endogenous variables (defaults to Gaussian). Currently, we support `"Gaussian"`, `"PLN"` (Poisson-Log-Normal), and `"BL"` (Beta-Logistic).
 * `g_prior`: the choice of the g hyperparameter. Currently, we support `"BRIC"` (default) and `"hyper-g/n"`.
 * `two_comp`: a Boolean indicating whether the two-component g-prior should be used in the treatment model (defaults to `false`). The two-component prior can only be used with a single endogenous variable (i.e. `X` only has a single column).
+* `cov_prior`: the covariance prior structure. The full inverse Wishart (`"IW"`; default) and the Cholesky-based (`"Cholesky"`) prior are available.
 * `ν`: the degrees of freedom parameter for the inverse Wishart prior on the covariance matrix. If not specified, this defaults to an Exponential hyperprior.
-* `m`: the prior mean model size. If not specified, it defaults to `k/2` in the outcome model and `(k+p)/2` in the treatment model, where `k` is the number of exogenous covariates and `p` is the number of instruments.
+* `ω_a`: the prior variance on the scaled residual covariance (only relevant for the Cholesky prior).
+* `m`: the prior mean model size. If not specified, it defaults to `k/2` in the outcome model and `(k+p)/2` in the treatment model, where `k` is the number of exogenous covariates and `p` is the number of instruments (or `p/2` in both models if only instruments are provided).
 * `r_prior`: a `Distribution` object specifying the prior on additional parameters for any non-Gaussian distributions involved. Currently, this only includes the dispersion parameter of the Beta-Logistic distribution (which defaults to an Exponential with scale 1).
 
 A useful function is `rbw`:
