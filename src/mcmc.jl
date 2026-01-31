@@ -46,7 +46,7 @@ end
 """
     The main MCMC function that returns posterior samples.
 """
-function givbma_mcmc(y, X, Z, W, iter, burn, dist, two_comp, g_prior, m, cov_prior, ν, ω_a, r_prior)
+function givbma_mcmc(y, X, Z, W, iter, burn, dist, two_comp, g_prior, m, cov_prior, ν, ω_a, r_prior, model_start)
     # dimensions
     n, l = size(X)
     p = size(Z, 2); k = size(W, 2)
@@ -77,6 +77,13 @@ function givbma_mcmc(y, X, Z, W, iter, burn, dist, two_comp, g_prior, m, cov_pri
     # starting values
     L = sample([true, false], k, replace = true)
     M = sample([true, false], k+p, replace = true)
+    if model_start == "Full"
+        L = repeat([false], k)
+        M = repeat([true], k+p)
+    elseif model_start == "Empty"
+        L = repeat([true], k)
+        M = repeat([false], k+p)
+    end
 
     α, τ, β = (0.0, zeros(l), zeros(k)[L])
     Γ, Δ = (zeros(l), zeros(k+p, l)[M, :])

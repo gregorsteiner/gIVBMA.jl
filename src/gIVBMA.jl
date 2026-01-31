@@ -51,7 +51,8 @@ function givbma(
     cov_prior::String = "IW",
     ν::Union{Nothing, Number} = nothing,
     ω_a::Number = 1.0,
-    r_prior::Distribution = Exponential(1)
+    r_prior::Distribution = Exponential(1),
+    model_start::String = "Random"
 )
     # if X is a vector turn it into an nx1 matrix
     if ndims(X) == 1
@@ -65,7 +66,7 @@ function givbma(
         m = [k/2, (k+p)/2]
     end
 
-    res = givbma_mcmc(y, X, Z, W, iter, burn, dist, two_comp, g_prior, m, cov_prior, ν, ω_a, r_prior)
+    res = givbma_mcmc(y, X, Z, W, iter, burn, dist, two_comp, g_prior, m, cov_prior, ν, ω_a, r_prior, model_start)
 
     return res
 end
@@ -83,7 +84,8 @@ function givbma(
     cov_prior::String = "IW",
     ν::Union{Nothing, Number} = nothing,
     ω_a::Number = 1.0,
-    r_prior::Distribution = Exponential(1)
+    r_prior::Distribution = Exponential(1),
+    model_start::String = "Random"
 )
     # if X is a vector turn it into an nx1 matrix
     if ndims(X) == 1
@@ -97,7 +99,7 @@ function givbma(
         m = [p/2, p/2]
     end
 
-    res = givbma_mcmc(y, X, Matrix{Float64}(undef, n, 0), Z, iter, burn, dist, two_comp, g_prior, m, cov_prior, ν, ω_a, r_prior)
+    res = givbma_mcmc(y, X, Matrix{Float64}(undef, n, 0), Z, iter, burn, dist, two_comp, g_prior, m, cov_prior, ν, ω_a, r_prior, model_start)
 
     return res
 end

@@ -35,6 +35,7 @@ Z = Matrix(df[:, needed_columns[Not(1:3)]])
     res_BL = givbma(y, X, Z; dist = ["Gaussian", "Gaussian", "BL"])
     res_2c = givbma(y, X[:, 1], Z[:, 1:2], Z[:, 3:8]; two_comp = true, g_prior = "hyper-g/n")
     res_cholesky = givbma(y, X, Z; dist = ["Gaussian", "Gaussian", "BL"], g_prior = "hyper-g/n", cov_prior = "Cholesky")
+    res_BL_full = givbma(y, X, Z; dist = ["Gaussian", "Gaussian", "BL"], model_start = "Full")
 
     # check if the estimated parameters match the expected values
     expected_taus = [0.8, -1.0]
@@ -43,6 +44,7 @@ Z = Matrix(df[:, needed_columns[Not(1:3)]])
     @test isapprox(map(mean, rbw(res_BL)), expected_taus; atol = 0.2)
     @test isapprox(map(mean, rbw(res_2c))[1], 1.0; atol = 0.3)
     @test isapprox(map(mean, rbw(res_cholesky)), expected_taus; atol = 0.2)
+    @test isapprox(map(mean, rbw(res_BL_full)), expected_taus; atol = 0.2)
 
     # Also check if the LPS computation and the Rao-Blackwellisation work
     res_lps = lps(res_BL, y, X, Z)
