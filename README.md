@@ -2,7 +2,7 @@
 
 [![Build Status](https://github.com/gregorsteiner/IVBMA.jl/workflows/CI/badge.svg)](https://github.com/gregorsteiner/IVBMA.jl/actions)
 
-Bayesian Model Averaging in Instrumental Variable Models. This package implements the gIVBMA method proposed in Steiner and Steel (2025).
+Bayesian Model Averaging in Instrumental Variable Models. This package implements the gIVBMA method proposed in Steiner and Steel (2026).
 
 ## Installation
 
@@ -50,4 +50,4 @@ lines(posterior[1])
 
 ## References
 
-Steiner, G. and Steel, M. (2025). Bayesian Model Averaging in Causal Instrumental Variable Models. arXiv:2504.13520
+Steiner, G. and Steel, M. (2026). Bayesian Model Averaging in Causal Instrumental Variable Models. Journal of Applied Econometrics, 41(5):669–683.
